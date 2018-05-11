@@ -9,7 +9,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         VPNBackend vpnBackend = new VPNBackend();
-        Log.i("MainActivity", vpnBackend.startThread());
+        Log.i("MainActivity", "result: " + vpnBackend.startThread());
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
     }
