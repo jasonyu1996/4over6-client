@@ -1,16 +1,5 @@
-*.iml
-.gradle
-.idea/
-/local.properties
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
 
-# Created by https://www.gitignore.io/api/androidstudio
+# Created by https://www.gitignore.io/api/macos,androidstudio
 
 ### AndroidStudio ###
 # Covers files to be ignored for android development using Android Studio.
@@ -141,5 +130,29 @@ fabric.properties
 
 !/gradle/wrapper/gradle-wrapper.jar
 
+### macOS ###
+*.DS_Store
+.AppleDouble
+.LSOverride
 
-# End of https://www.gitignore.io/api/androidstudio
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+
+# End of https://www.gitignore.io/api/macos,androidstudio
