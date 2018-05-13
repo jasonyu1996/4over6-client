@@ -2,11 +2,13 @@
 // Created by Jason YU on 2018/5/13.
 //
 
+#include <unistd.h>
+#include <stdlib.h>
 #include "stream.h"
 #include "debug.h"
 
 
-void stream_write(stream_t* stream, void* buf, int sz){
+void stream_write(stream_t* stream, const void* buf, int sz){
     write(stream->fd, buf, sz);
 }
 

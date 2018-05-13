@@ -11,11 +11,9 @@
 #define MAX_MESSAGE_PAYLOAD 4096
 #define MESSAGE_TYPE_IP_REQUEST 100
 #define MESSAGE_TYPE_IP_RESPONSE 101
-#define MESSAGE_TYPE_LOGIN_REQUEST 102
-#define MESSAGE_TYPE_LOGIN_RESPONSE 103
-#define MESSAGE_TYPE_ALIVE   104
-
-
+#define MESSAGE_TYPE_SERVICE_REQUEST 102
+#define MESSAGE_TYPE_SERVICE_RESPONSE 103
+#define MESSAGE_TYPE_PULSE   104
 
 typedef struct Message{
     int length;
@@ -29,5 +27,7 @@ inline int message_get_length(message_t* msg){
 
 message_t* message_create(char type, void* buf, int len);
 void message_free(message_t* msg);
+
+
 
 #endif //VPN4OVER6_MESSAGE_H

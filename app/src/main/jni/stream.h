@@ -12,7 +12,7 @@ typedef struct Stream {
     int buf_size;
 } stream_t;
 
-void stream_write(stream_t* stream, void* buf, int sz);
+void stream_write(stream_t* stream, const void* buf, int sz);
 void stream_read(stream_t* stream, void* buf, int sz);
 void stream_clean(stream_t* stream);
 

@@ -21,3 +21,14 @@ void message_free(message_t* msg){
     free(msg);
 }
 
+
+const message_t MESSAGE_PULSE = {
+    .length = htonl(sizeof(int) + sizeof(char)),
+    .type = MESSAGE_TYPE_PULSE,
+};
+
+const message_t MESSAGE_IP_REQUEST = {
+    .length = htonl(sizeof(int) + sizeof(char)),
+    .type = MESSAGE_TYPE_IP_REQUEST,
+};
+
