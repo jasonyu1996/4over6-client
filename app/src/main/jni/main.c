@@ -15,6 +15,7 @@
 #include "sock.h"
 #include "stream.h"
 #include "debug.h"
+#include "ip.h"
 
 #define SERVER_ADDRESS "2402:f000:1:4417:0:0:0:900"
 #define SERVER_PORT 5678
@@ -22,15 +23,20 @@
 #define PIPE_BUF_SIZE 2048
 #define stream_write_message(stream, message) stream_write((stream), (message), message_get_length((message)))
 #define SERVER_LIFE_SPAN 60
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 typedef unsigned int ipv4_t;
+typedef unsigned long long UL;
 
 extern const message_t MESSAGE_IP_REQUEST, MESSAGE_PULSE;
-static sock_t *sock;
+static sock_t *sock, *tun_sock;
 static int pulse_count, server_pulse_count = 0;
-static pthread_mutex_t server_pulse_count_lock;
-static pthread_t pulse_thread, postman_thread;
+static UL sent_packet_len, sent_packet_cnt, received_packet_len, received_packet_cnt;
+static pthread_mutex_t server_pulse_count_lock, pipe_lock;
+static pthread_t pulse_thread, postman_thread, pack_thread;
 static ipv4_t dns[3], host, router;
+static pipe_t* pipe_v;
+static volatile int backend_running; // switch to start or end the threadse
 
 static void stream_read_message(stream_t* stream, message_t* msg){
     stream_read_var(stream, msg->length, int);
@@ -38,24 +44,53 @@ static void stream_read_message(stream_t* stream, message_t* msg){
     stream_read(stream, &msg->type, len - sizeof(int));
 }
 
-
 // check the tun interface
 static void pack_loop(){
-    while(1){
+    struct IPv4Header header;
+    static message_t msg = {
+        .type = MESSAGE_TYPE_SERVICE_REQUEST,
+    };
+    unsigned int payload_len, rem_len;
+    while(backend_running){
+        sock_read_var(tun_sock, header, struct IPv4Header);
+        LOGD("A packet intercepted at tun.");
 
+        // split into multiple packets
+        memcpy(msg.data, &header, sizeof(struct IPv4Header));
+        // first 4over6 packet
+        payload_len = min(header.length, MAX_MESSAGE_PAYLOAD) - sizeof(struct IPv4Header);
+        sock_read(tun_sock, msg.data + sizeof(struct IPv4Header), payload_len);
+        msg.length = htonl(payload_len + sizeof(struct IPv4Header) + sizeof(int) + sizeof(char));
+
+        stream_write_message(tun_sock, &msg);
+
+        // subsequent packet
+        rem_len = msg.length - payload_len - sizeof(struct IPv4Header);
+        while(rem_len){
+            payload_len = min(rem_len, MAX_MESSAGE_PAYLOAD);
+            msg.length = htonl(payload_len + sizeof(int) + sizeof(char));
+            stream_write_message(tun_sock, &msg);
+
+            rem_len -= payload_len;
+        }
+
+        ++ sent_packet_cnt;
+        sent_packet_len += header.length;
     }
 }
 
 // this does nothing other than sending statistics to the frontend
 // and sending pulse signal to the server
 static void pulse_loop(){
-    while(1){
+    while(backend_running){
         sleep(1);
 
         pthread_mutex_lock(&server_pulse_count_lock);
         ++ server_pulse_count;
         if(server_pulse_count > SERVER_LIFE_SPAN){
             // the server is down
+
+            //TODO: do something when the server is found to be down
         }
         pthread_mutex_unlock(&server_pulse_count_lock);
 
@@ -68,7 +103,13 @@ static void pulse_loop(){
             LOGD("Pulse sent!");
         }
 
-        // TODO: write statistics to pipe
+        // write statistics to the pipe
+        pthread_mutex_lock(&pipe_lock);
+        pipe_write_var(pipe_v, sent_packet_len, UL);
+        pipe_write_var(pipe_v, sent_packet_cnt, UL);
+        pipe_write_var(pipe_v, received_packet_len, UL);
+        pipe_write_var(pipe_v, received_packet_cnt, UL);
+        pthread_mutex_unlock(&pipe_lock);
     }
 }
 
@@ -92,14 +133,37 @@ static void parse_ip(char* ip_str){
 // and acts accordingly
 static void postman_loop(){
     static message_t msg;
-    while(1){
+    int tun_fd, i;
+    while(backend_running){
         stream_read_message(sock, &msg);
         switch(msg.type){
         case MESSAGE_TYPE_IP_RESPONSE:
             LOGD("IP Response pack received: %s", msg.data);
             parse_ip(msg.data);
-            //TODO: do something for IP response
+
+
+            // write ip info to the pipe
+            pthread_mutex_lock(&pipe_lock);
+            pipe_write_var(pipe_v, host, ipv4_t);
+            pipe_write_var(pipe_v, router, ipv4_t);
+            for(i = 0; i < 3; i ++)
+                pipe_write_var(pipe_v, dns[i], ipv4_t);
+
+            // fetch the fd for tun
+            pipe_read_var(pipe_v, tun_fd, int);
+            pthread_mutex_unlock(&pipe_lock);
+            tun_sock = sock_create(tun_fd);
+
+            // start forwarding packets
+            pthread_create(&pack_thread, NULL, pack_loop, NULL);
+
+            break;
         case MESSAGE_TYPE_SERVICE_RESPONSE:
+            sock_write(tun_sock, msg.data, message_get_length(&msg) - sizeof(char) - sizeof(int));
+            ++ received_packet_cnt;
+            received_packet_len += message_get_length(&msg) - sizeof(char) - sizeof(int);
+
+            break;
 
         case MESSAGE_TYPE_PULSE:
             LOGD("Pulse pack received");
@@ -114,9 +178,9 @@ static void postman_loop(){
     }
 }
 
-JNIEXPORT jstring JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
+JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
   (JNIEnv * env, jobject obj){
-    pipe_t* pipe = pipe_create(PIPE_NAME, PIPE_BUF_SIZE);
+    pipe_v = pipe_create(PIPE_NAME);
 
     int sock_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if(sock_fd == -1)
@@ -138,13 +202,28 @@ JNIEXPORT jstring JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
 
     // initialize the mutexes
     pthread_mutex_init(&server_pulse_count_lock, NULL);
+    pthread_mutex_init(&pipe_lock, NULL);
 
 
     // initialize and start the threads
+    backend_running = 1;
     pthread_create(&postman_thread, NULL, postman_loop, NULL);
     pthread_create(&pulse_thread, NULL, pulse_loop, NULL);
 
 
-    return (*env)->NewStringUTF(env, "Well done!");
+    return 0;
 }
 
+
+JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_endThread
+  (JNIEnv * env, jobject obj){
+    // not tested yet
+    // this implementation is problematic
+    // TODO: try making IO nonblocking
+    backend_running = 0;
+    sock_clean(sock);
+    sock_clean(tun_sock);
+    pipe_clean(pipe_v);
+
+    return 0;
+}

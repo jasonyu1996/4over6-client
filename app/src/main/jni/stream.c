@@ -17,6 +17,5 @@ void stream_read(stream_t* stream, void* buf, int sz){
 }
 
 void stream_clean(stream_t* stream){
-    free(stream->buf);
     free(stream);
 }

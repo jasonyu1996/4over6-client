@@ -7,9 +7,7 @@
 
 
 typedef struct Stream {
-    char* buf;
     int fd;
-    int buf_size;
 } stream_t;
 
 void stream_write(stream_t* stream, const void* buf, int sz);
