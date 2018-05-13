@@ -9,8 +9,8 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-pipe_t* pipe_init(const char* name, int buf_size){
-    struct Pipe* pipe = (struct Pipe*)malloc(sizeof(struct Pipe));
+pipe_t* pipe_create(const char* name, int buf_size){
+    pipe_t* pipe = (pipe_t*)malloc(sizeof(pipe_t));
 
     mknod(name, S_IFIFO | 0666, 0);
     pipe->fd = open(name, O_RDWR|O_CREAT|O_TRUNC);
@@ -20,6 +20,7 @@ pipe_t* pipe_init(const char* name, int buf_size){
     return pipe;
 }
 
+/*
 void pipe_write(pipe_t* pipe, void* buf, int sz){
     write(pipe->fd, buf, sz);
 }
@@ -31,3 +32,5 @@ void pipe_read(pipe_t* pipe, void* buf, int sz){
 void pipe_clean(pipe_t* pipe){
 
 }
+
+*/

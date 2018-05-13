@@ -1,7 +1,7 @@
 package cn.edu.tsinghua.vpn4over6;
 
 public class VPNBackend {
-    public native int startThread();
+    public native String startThread();
     static{
         System.loadLibrary("backend_jni");
     }

@@ -12,7 +12,7 @@ extern "C" {
  * Method:    startThread
  * Signature: ()I
  */
-JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
+JNIEXPORT jstring JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
   (JNIEnv *, jobject);
 
 #ifdef __cplusplus
