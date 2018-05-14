@@ -180,7 +180,6 @@ static void postman_loop(){
 
 JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
   (JNIEnv * env, jobject obj){
-    pipe_v = pipe_create(PIPE_NAME);
 
     int sock_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if(sock_fd == -1)
@@ -192,6 +191,13 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
     //2402:f000:1:4417::900
     inet_pton(AF_INET6, SERVER_ADDRESS, &addr.sin6_addr);
     int res = connect(sock_fd, &addr, sizeof(addr));
+
+    if(res != 0){
+        return res;
+    }
+
+    pipe_v = pipe_create(PIPE_NAME);
+
 
     char dumb;
 
