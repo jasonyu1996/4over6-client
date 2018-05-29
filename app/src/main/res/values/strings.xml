@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">VPN 4over6</string>
+    <string name="title_activity_main_menu">MainMenu</string>
+    <string name="title_activity_example">example</string>
+    <string name="title_activity_main">Main</string>
+    <string name="title_activity_ivi">IVI</string>
 </resources>
