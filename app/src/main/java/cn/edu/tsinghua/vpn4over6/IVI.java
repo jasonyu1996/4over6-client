@@ -28,28 +28,25 @@ import android.util.Log;
 public class IVI extends AppCompatActivity {
 
     public Timer mTimer = new Timer();
+
     private TextView ipv6Addr = findViewById(R.id.textView3);
     private TextView ipv4Addr = findViewById(R.id.textView5);
     private TextView uploadInfo = findViewById(R.id.textView8);
     private TextView downloadInfo = findViewById(R.id.textView10);
     private TextView runTime = findViewById(R.id.textView12);
     private FloatingActionButton mFab = findViewById(R.id.fab);
+
     private int running = 0; //服务是否已开启（1）的标志
     private int flag = 0; //决定读取ip管道信息（0）或读取流量管道信息（1）的标志
+
     private byte[] readBuf;
     private byte[] writeBuf;
 
     public Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case 1: //需要刷新界面
-                    System.out.println("good "); //调试用输出
-                    renewUI();
-                    break;
-                case 2:
-                    mTimer.cancel();
-                    mTimer=null;
+            if (msg.what == 1) {
+                renewUI();
             }
             super.handleMessage(msg);
         }
@@ -69,24 +66,24 @@ public class IVI extends AppCompatActivity {
         mFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) { //点击悬浮按钮，开启或停止服务
-            try {
-                if (running == 0) { //服务尚未开启，点击按钮开启服务
-                    mTimer = new Timer();
-                    timerTask();
-                    running = 1;
-                    Snackbar.make(view, "服务已开启。", Snackbar.LENGTH_LONG)
-                            .setAction("Action", null).show();
-                } else if (running == 1) { //服务已经开启，点击按钮停止服务
-                    if (mTimer != null) {
-                        mTimer.cancel();
+                try {
+                    if (running == 0) { //服务尚未开启，点击按钮开启服务
+                        mTimer = new Timer();
+                        timerTask();
+                        running = 1;
+                        Snackbar.make(view, "服务已开启。", Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
+                    } else if (running == 1) { //服务已经开启，点击按钮停止服务
+                        if (mTimer != null) {
+                            mTimer.cancel();
+                        }
+                        running = 0;
+                        Snackbar.make(view, "服务已停止。", Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
                     }
-                    running = 0;
-                    Snackbar.make(view, "服务已停止。", Snackbar.LENGTH_LONG)
-                            .setAction("Action", null).show();
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
                 }
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-            }
             }
         });
     }
@@ -102,7 +99,7 @@ public class IVI extends AppCompatActivity {
                         writePipe();//把虚接口描述符写入管道
                         flag = 1;
                     }
-                    mHandler.sendEmptyMessage(1);
+                    mHandler.sendEmptyMessage(2);
                 } else if (flag == 1) {
                     readPipe();
                     //对读取到对流量信息做转换
@@ -112,7 +109,7 @@ public class IVI extends AppCompatActivity {
                     //下载总包数
                     //上传速率（两次总上传流量相减）
                     //下载速率（两次总下载流量相减）
-                    mHandler.sendEmptyMessage(2); //需要刷新ui
+                    mHandler.sendEmptyMessage(1); //需要刷新ui
                 }
             }
         }, 1000, 1000);
@@ -167,9 +164,8 @@ public class IVI extends AppCompatActivity {
         runTime.setText("00:00:03");
     }
 
-    public void startVPN() { //开启vpn服务
-        //准备工作，弹窗供用户确认
-        Intent intent = VpnService.prepare(this);
+    public void startVPN() {
+        Intent intent = VpnService.prepare(getApplicationContext());
         if (intent != null) {
             startActivityForResult(intent, 0);
         }
