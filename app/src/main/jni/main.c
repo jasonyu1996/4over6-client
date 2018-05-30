@@ -19,7 +19,7 @@
 
 #define SERVER_ADDRESS "2402:f000:1:4417:0:0:0:900"
 #define SERVER_PORT 5678
-#define PIPE_NAME "/data/data/cn.edu.tsinghua.vpn4over6/v_pipe/vpn4over6_pipe"
+#define PIPE_NAME "/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe"
 #define PIPE_BUF_SIZE 2048
 #define stream_write_message(stream, message) stream_write((stream), (message), message_get_length((message)))
 #define SERVER_LIFE_SPAN 60
