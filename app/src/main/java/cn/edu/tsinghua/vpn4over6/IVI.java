@@ -1,6 +1,5 @@
 package cn.edu.tsinghua.vpn4over6;
 
-<<<<<<< HEAD
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -11,16 +10,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.view.View;
-//import android.view.View.OnClickListener;
-=======
+import android.view.View.OnClickListener;
 import android.os.Bundle;
->>>>>>> e5f98d801f34ac42b0733f50eae5c2049e8ad89e
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-<<<<<<< HEAD
 
 public class IVI extends AppCompatActivity {
 
@@ -45,17 +41,10 @@ public class IVI extends AppCompatActivity {
 
     public Timer mTimer = new Timer();
 
-=======
-import android.view.View;
-
-public class IVI extends AppCompatActivity {
-
->>>>>>> e5f98d801f34ac42b0733f50eae5c2049e8ad89e
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         VPNBackend vpnBackend = new VPNBackend();
         Log.i("MainActivity", "result: " + vpnBackend.startThread());
-<<<<<<< HEAD
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ivi);
@@ -68,7 +57,7 @@ public class IVI extends AppCompatActivity {
             @Override
             public void onClick(View view) { //点击悬浮按钮，开启或停止服务
                 try {
-                    if(running == 0) { //服务尚未开启，点击按钮开启服务
+                    if (running == 0) { //服务尚未开启，点击按钮开启服务
                         mTimer = new Timer();
                         timerTask();
                         running = 1;
@@ -76,8 +65,7 @@ public class IVI extends AppCompatActivity {
                         startVPN();//实际应当先读管道再开启
                         Snackbar.make(view, "服务已开启。", Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
-                    }
-                    else if(running == 1){ //服务已经开启，点击按钮停止服务
+                    } else if (running == 1) { //服务已经开启，点击按钮停止服务
                         if (mTimer != null) {
                             mTimer.cancel();
                         }
@@ -85,28 +73,12 @@ public class IVI extends AppCompatActivity {
                         Snackbar.make(view, "服务已停止。", Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
                     }
-                }
-                catch (IllegalStateException e) {
+                } catch (IllegalStateException e) {
                     e.printStackTrace();
                 }
-=======
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_ivi);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
->>>>>>> e5f98d801f34ac42b0733f50eae5c2049e8ad89e
             }
         });
     }
-
-<<<<<<< HEAD
     public void timerTask() { //计时器执行的定时任务
         mTimer.schedule(new TimerTask() {
             @Override
@@ -147,7 +119,4 @@ public class IVI extends AppCompatActivity {
         mTimer.cancel();
         super.onStop();
     }
-
-=======
->>>>>>> e5f98d801f34ac42b0733f50eae5c2049e8ad89e
 }

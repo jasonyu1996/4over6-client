@@ -28,12 +28,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-<<<<<<< HEAD
         android:focusable="true"
         android:clickable="true"
         app:backgroundTint="@android:color/darker_gray"
-=======
->>>>>>> e5f98d801f34ac42b0733f50eae5c2049e8ad89e
         app:srcCompat="@android:drawable/ic_media_play" />
 
 </android.support.design.widget.CoordinatorLayout>
