@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <assert.h>
 #include "pipe.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -12,7 +13,10 @@
 pipe_t* pipe_create(const char* name){
     pipe_t* pipe = (pipe_t*)malloc(sizeof(pipe_t));
 
-    mknod(name, S_IFIFO | 0666, 0);
+    int ret = mknod(name, S_IFIFO | 0666, 0);
+    assert(ret == 0);
+
+
     pipe->fd = open(name, O_RDWR|O_CREAT|O_TRUNC);
 
     return pipe;
