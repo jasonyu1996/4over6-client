@@ -19,7 +19,8 @@
 
 #define SERVER_ADDRESS "2402:f000:1:4417:0:0:0:900"
 #define SERVER_PORT 5678
-#define PIPE_NAME "/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe"
+#define OUT_PIPE_NAME "/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe_out"
+#define IN_PIPE_NAME "/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe_in"
 #define PIPE_BUF_SIZE 2048
 #define stream_write_message(stream, message) stream_write((stream), (message), message_get_length((message)))
 #define SERVER_LIFE_SPAN 60
@@ -35,7 +36,7 @@ static UL sent_packet_len, sent_packet_cnt, received_packet_len, received_packet
 static pthread_mutex_t server_pulse_count_lock, pipe_lock;
 static pthread_t pulse_thread, postman_thread, pack_thread;
 static ipv4_t dns[3], host, router;
-static pipe_t* pipe_v;
+static pipe_t* pipe_v, *pipe_v_out;
 static volatile int backend_running; // switch to start or end the threadse
 
 static void stream_read_message(stream_t* stream, message_t* msg){
@@ -115,18 +116,20 @@ static void pulse_loop(){
 
 // parse the ip info from the server
 static void parse_ip(char* ip_str){
-    char* ss[5];
+    char* ss[5], *ip_str_c = ip_str;
     int i, c = 0;
-    ss[0] = ip_str;
 
-    for(i = 0; i < 4; i ++){
-        ss[i + 1] = strsep(ss + i, " ");
+    for(i = 0; i < 5; i ++){
+        ss[i] = strsep(&ip_str_c, " ");
     }
 
     inet_pton(AF_INET, ss[0], &host);
+
     inet_pton(AF_INET, ss[1], &router);
+
     for(i = 0; i < 3; i ++)
         inet_pton(AF_INET, ss[i + 2], dns + i);
+
 }
 
 // this continually checks messages from the server
@@ -144,10 +147,13 @@ static void postman_loop(){
 
             // write ip info to the pipe
             pthread_mutex_lock(&pipe_lock);
-            pipe_write_var(pipe_v, host, ipv4_t);
-            pipe_write_var(pipe_v, router, ipv4_t);
+
+            pipe_write_var(pipe_v_out, host, ipv4_t);
+
+            pipe_write_var(pipe_v_out, router, ipv4_t);
+
             for(i = 0; i < 3; i ++)
-                pipe_write_var(pipe_v, dns[i], ipv4_t);
+                pipe_write_var(pipe_v_out, dns[i], ipv4_t);
 
             // fetch the fd for tun
             pipe_read_var(pipe_v, tun_fd, int);
@@ -196,7 +202,8 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
         return res;
     }
 
-    pipe_v = pipe_create(PIPE_NAME);
+    pipe_v = pipe_create(IN_PIPE_NAME);
+    pipe_v_out = pipe_create(OUT_PIPE_NAME);
 
 
     char dumb;

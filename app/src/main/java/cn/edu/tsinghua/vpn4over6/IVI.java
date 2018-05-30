@@ -153,12 +153,17 @@ public class IVI extends AppCompatActivity {
         //File extDir = Environment.getExternalStorageDirectory();
         //File file = new File(extDir,"vpn4over6_pipe");
         try {
-            FileInputStream fileInputStream = new FileInputStream("/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe");
+            FileInputStream fileInputStream = new FileInputStream("/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe_out");
 //            FileDescriptor fd =  fileInputStream.getFD();
             BufferedInputStream in = new BufferedInputStream(fileInputStream);
             byte buffer[] = new byte[256];
             try {
+<<<<<<< HEAD
                 int readLen = fileInputStream.read(buffer); //读取管道
+=======
+                int readLen = in.read(buffer); //读取管道
+                Log.i("MainActivity", "readLen = " + readLen);
+>>>>>>> c452e6386208a01a7ed0281e719660ea844e7b83
                 readBuf = buffer;
                 String newmessage = new String(buffer,0, readLen, "US-ASCII");
                 Log.i("MainActivity", "newmessage: " + newmessage);
