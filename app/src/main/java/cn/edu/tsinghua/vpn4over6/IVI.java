@@ -1,5 +1,6 @@
 package cn.edu.tsinghua.vpn4over6;
 
+import java.io.FileDescriptor;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.io.FileInputStream;
@@ -29,12 +30,12 @@ public class IVI extends AppCompatActivity {
 
     public Timer mTimer = new Timer();
 
-    private TextView ipv6Addr = findViewById(R.id.textView3);
-    private TextView ipv4Addr = findViewById(R.id.textView5);
-    private TextView uploadInfo = findViewById(R.id.textView8);
-    private TextView downloadInfo = findViewById(R.id.textView10);
-    private TextView runTime = findViewById(R.id.textView12);
-    private FloatingActionButton mFab = findViewById(R.id.fab);
+    private TextView ipv6Addr;
+    private TextView ipv4Addr;
+    private TextView uploadInfo;
+    private TextView downloadInfo;
+    private TextView runTime;
+    private FloatingActionButton mFab;
 
     private int running = 0; //服务是否已开启（1）的标志
     private int flag = 0; //决定读取ip管道信息（0）或读取流量管道信息（1）的标志
@@ -54,6 +55,11 @@ public class IVI extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ipv6Addr = findViewById(R.id.textView3);
+        ipv4Addr = findViewById(R.id.textView5);
+        uploadInfo = findViewById(R.id.textView8);
+        downloadInfo = findViewById(R.id.textView10);
+        runTime = findViewById(R.id.textView12);
         VPNBackend vpnBackend = new VPNBackend();
         Log.i("MainActivity", "result: " + vpnBackend.startThread());
 
@@ -63,6 +69,7 @@ public class IVI extends AppCompatActivity {
         Toolbar mToolBar = findViewById(R.id.toolbar);
         setSupportActionBar(mToolBar);
 
+        mFab = findViewById(R.id.fab);
         mFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) { //点击悬浮按钮，开启或停止服务
@@ -116,26 +123,32 @@ public class IVI extends AppCompatActivity {
     }
 
     public int readPipe() {
-        //读取pipe中的信息
-        FileInputStream fileInputStream = new FileInputStream(file);
-        BufferedInputStream in = new BufferedInputStream(fileInputStream); 
+        //File extDir = Environment.getExternalStorageDirectory();
+        //File file = new File(extDir,"vpn4over6_pipe");
         try {
-            int readLen = in.read(readBuf); //读取管道
+            FileInputStream fileInputStream = new FileInputStream("/data/data/cn.edu.tsinghua.vpn4over6/v_pipe/vpn4over6_pipe");
+//            FileDescriptor fd =  fileInputStream.getFD();
+            BufferedInputStream in = new BufferedInputStream(fileInputStream);
             try {
-                in.close();
-            } catch (IOException e) {
+                int readLen = in.read(readBuf); //读取管道
+                try {
+                    in.close();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                return readLen;
+            } catch (IOException e){
                 e.printStackTrace();
             }
-            return readLen;
         } catch (IOException e){
             e.printStackTrace();
         }
         return 0;
-    }//??需要从哪里读
+    }
 
     public void writePipe() {
         File extDir = Environment.getExternalStorageDirectory(); //获取当前路径 
-        File file = new File(extDir,"cmd_pipe");
+        File file = new File(extDir,"vpn4over6_pipe");
         try {
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             BufferedOutputStream out = new BufferedOutputStream(fileOutputStream);
@@ -153,7 +166,7 @@ public class IVI extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }//??需要写到哪里去
+    }
 
     public void renewUI() {
         //根据读取到到值进行转换
