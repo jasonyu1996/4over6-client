@@ -44,10 +44,12 @@ public class IVI extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
+        VPNBackend vpnBackend = new VPNBackend();
+        Log.i("MainActivity", "result: " + vpnBackend.startThread());
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ivi);
 
-        //View view = this.getLayoutInflater().inflate(R.layout.content_ivi, null);
         textView3 = (TextView) findViewById(R.id.textView3);
         textView5 = (TextView) findViewById(R.id.textView5);
         textView8 = (TextView) findViewById(R.id.textView8);
@@ -58,10 +60,6 @@ public class IVI extends AppCompatActivity {
         textView8.setText("0 M ↑ 0 MB/s");
         textView10.setText("0 M ↓ 0 MB/s");
         textView12.setText("00:00:00");
-        VPNBackend vpnBackend = new VPNBackend();
-        Log.i("MainActivity", "result: " + vpnBackend.startThread());
-
-        View converView = this.getLayoutInflater().inflate(R.layout.activity_ivi,null);
 
         Toolbar mToolBar = findViewById(R.id.toolbar);
         setSupportActionBar(mToolBar);
@@ -118,6 +116,7 @@ public class IVI extends AppCompatActivity {
             @Override
             public void run() {
                 msecond ++;
+                Log.i("MainActivity", "flag = " + flag);
                 if (msecond == 60) {
                     msecond = 0;
                     mminute ++;
@@ -129,11 +128,10 @@ public class IVI extends AppCompatActivity {
                 if (flag == 0) {
                     int readFlag = readPipe();
                     if (readFlag > 0) {//这里需要修改，判断是否读到了ip地址
-                        startVPN();
+//                        startVPN();
                         //writePipe();//把虚接口描述符写入管道
                         flag = 1;
                     }
-                    mHandler.sendEmptyMessage(2);
                 } else if (flag == 1) {
                     readPipe();
                     //对读取到对流量信息做转换
@@ -157,13 +155,12 @@ public class IVI extends AppCompatActivity {
 //            FileDescriptor fd =  fileInputStream.getFD();
             BufferedInputStream in = new BufferedInputStream(fileInputStream);
             byte buffer[] = new byte[256];
+            Log.i("MainActivity", "good");
             try {
-<<<<<<< HEAD
+                Log.i("MainActivity", "good2");
                 int readLen = fileInputStream.read(buffer); //读取管道
-=======
-                int readLen = in.read(buffer); //读取管道
+                Log.i("MainActivity", "good3");
                 Log.i("MainActivity", "readLen = " + readLen);
->>>>>>> c452e6386208a01a7ed0281e719660ea844e7b83
                 readBuf = buffer;
                 String newmessage = new String(buffer,0, readLen, "US-ASCII");
                 Log.i("MainActivity", "newmessage: " + newmessage);
