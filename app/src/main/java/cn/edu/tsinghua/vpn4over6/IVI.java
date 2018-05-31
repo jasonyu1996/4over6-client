@@ -51,6 +51,7 @@ public class IVI extends AppCompatActivity {
     private byte[] readBuf;
     private byte[] writeBuf;
     private int[] intBuf;
+    private long[] networkData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -109,6 +110,7 @@ public class IVI extends AppCompatActivity {
 
         readBuf = new byte[32];
         intBuf = new int[32];
+        networkData = new long[4];
 
         textView3 = (TextView) findViewById(R.id.textView3);
         textView5 = (TextView) findViewById(R.id.textView5);
@@ -135,8 +137,7 @@ public class IVI extends AppCompatActivity {
                 textView12.setText(String.format("%02d", mhour)+":"+
                         String.format("%02d", mminute)+":"+
                         String.format("%02d", msecond));
-            }
-            if (msg.what == 2) {
+            } else if (msg.what == 2) {
                 for(int i = 0; i < 20; i++) {
                     intBuf[i] = readBuf[i];
                     if (intBuf[i] < 0)
@@ -162,6 +163,28 @@ public class IVI extends AppCompatActivity {
                         intBuf[17] + "." +
                         intBuf[18] + "." +
                         intBuf[19];
+            } else if (msg.what == 3) {
+                for(int i = 0; i < 32; i++) {
+                    intBuf[i] = readBuf[i];
+                    if (intBuf[i] < 0)
+                        intBuf[i] += 256;
+//                    Log.i("MainActivity", "intBufi : " + intBuf[i]);
+                }
+                int rank = 0;
+                long sum = 0;
+                for(int i = 0; i < 4; i++){
+                    sum = 0;
+                    for(int j = 0; j < 8; j++) {
+                        rank = 31 - j - i * 8;
+                        sum = sum + intBuf[rank];
+                        sum = sum * 256;
+                    }
+                    networkData[i] = sum;
+                }
+                Log.i("MainActivity", "data1 : " + networkData[0]);
+                Log.i("MainActivity", "data2 : " + networkData[1]);
+                Log.i("MainActivity", "data3 : " + networkData[2]);
+                Log.i("MainActivity", "data4 : " + networkData[3]);
             }
             super.handleMessage(msg);
         }
@@ -182,7 +205,8 @@ public class IVI extends AppCompatActivity {
                 }
                 if (flag == 0) {
                     int readFlag = readPipe();
-                    if (readFlag == 20) {//这里需要修改，判断是否读到了ip地址
+                    Log.i("MainActivity", "len = "+readFlag);
+                    if (readFlag > 0) {//这里需要修改，判断是否读到了ip地址
                         mHandler.sendEmptyMessage(2);
                         startVPN();
                         //把虚接口描述符写入管道
@@ -191,6 +215,7 @@ public class IVI extends AppCompatActivity {
                     }
                 } else if (flag == 1) {
                     readPipe();
+                    mHandler.sendEmptyMessage(3);
                     //对读取到对流量信息做转换
                     //上联ipv6地址
                     //下联ipv4虚地址
@@ -198,19 +223,19 @@ public class IVI extends AppCompatActivity {
                     //下载总包数
                     //上传速率（两次总上传流量相减）
                     //下载速率（两次总下载流量相减）
-                    Log.i("MainActivity", "pipe: " + readBuf);
                 }
                 mHandler.sendEmptyMessage(1); //需要刷新ui
+                Log.i("MainActivity", "flag = "+flag);
             }
         }, 1000, 1000);
     }
 
     public int readPipe() {
-        byte buffer[] = new byte[32];
         try {
+            byte[] buffer = new byte[32];
             int readLen = fileInputStream.read(buffer); //读取管道
             readBuf = buffer;
-            fileInputStream.close();
+            Log.i("MainActivity", "read : " + readBuf);
             return readLen;
         } catch (IOException e){
             e.printStackTrace();
@@ -227,7 +252,6 @@ public class IVI extends AppCompatActivity {
             fileOutputStream.write(b, 0, b.length); //读取管道
             writeBuf = b;
             fileOutputStream.flush();
-            fileOutputStream.close();
         } catch (IOException e){
             e.printStackTrace();
         }

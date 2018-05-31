@@ -109,10 +109,10 @@ static void pulse_loop(){
 
         // write statistics to the pipe
         pthread_mutex_lock(&pipe_lock);
-        pipe_write_var(pipe_v, sent_packet_len, UL);
-        pipe_write_var(pipe_v, sent_packet_cnt, UL);
-        pipe_write_var(pipe_v, received_packet_len, UL);
-        pipe_write_var(pipe_v, received_packet_cnt, UL);
+        pipe_write_var(pipe_v_out, sent_packet_len, UL);
+        pipe_write_var(pipe_v_out, sent_packet_cnt, UL);
+        pipe_write_var(pipe_v_out, received_packet_len, UL);
+        pipe_write_var(pipe_v_out, received_packet_cnt, UL);
         pthread_mutex_unlock(&pipe_lock);
     }
 }
