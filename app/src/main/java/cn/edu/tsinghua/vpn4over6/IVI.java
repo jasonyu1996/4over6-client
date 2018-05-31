@@ -11,11 +11,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
+import android.content.ComponentName;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Environment;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,14 +31,22 @@ import android.util.Log;
 
 public class IVI extends AppCompatActivity {
 
+    private static final String TAG = "IVI";
+
     public Timer mTimer = new Timer();
     private TextView textView3, textView5, textView8, textView10, textView12;
+
+    FileInputStream fileInputStream;
+    FileOutputStream fileOutputStream;
 
     private int running = 0; //服务是否已开启（1）的标志
     private int flag = 0; //决定读取ip管道信息（0）或读取流量管道信息（1）的标志
     private int mhour = 0;
     private int mminute = 0;
     private int msecond = 0;
+
+    private String ipv4addr, route, DNS1, DNS2, DNS3;
+    private String ipv6addr;
 
     private byte[] readBuf;
     private byte[] writeBuf;
@@ -49,17 +59,6 @@ public class IVI extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ivi);
-
-        textView3 = (TextView) findViewById(R.id.textView3);
-        textView5 = (TextView) findViewById(R.id.textView5);
-        textView8 = (TextView) findViewById(R.id.textView8);
-        textView10 = (TextView) findViewById(R.id.textView10);
-        textView12 = (TextView) findViewById(R.id.textView12);
-        textView3.setText("尚未连接");
-        textView5.setText("尚未连接");
-        textView8.setText("0 M ↑ 0 MB/s");
-        textView10.setText("0 M ↓ 0 MB/s");
-        textView12.setText("00:00:00");
 
         Toolbar mToolBar = findViewById(R.id.toolbar);
         setSupportActionBar(mToolBar);
@@ -91,21 +90,55 @@ public class IVI extends AppCompatActivity {
                 }
             }
         });
+
+        try {
+            fileInputStream = new FileInputStream("/data/data/"+
+                    "cn.edu.tsinghua.vpn4over6"+
+                    "/vpn4over6_pipe_out");
+        } catch(FileNotFoundException e){
+            e.printStackTrace();
+        }
+        try {
+            fileOutputStream = new FileOutputStream("/data/data/"+
+                    "cn.edu.tsinghua.vpn4over6"+
+                    "/vpn4over6_pipe_in");
+        } catch(FileNotFoundException e){
+            e.printStackTrace();
+        }
+
+        readBuf = new byte[32];
+
+        textView3 = (TextView) findViewById(R.id.textView3);
+        textView5 = (TextView) findViewById(R.id.textView5);
+        textView8 = (TextView) findViewById(R.id.textView8);
+        textView10 = (TextView) findViewById(R.id.textView10);
+        textView12 = (TextView) findViewById(R.id.textView12);
+        textView3.setText("尚未连接");
+        textView5.setText("尚未连接");
+        textView8.setText("0 M ↑ 0 MB/s");
+        textView10.setText("0 M ↓ 0 MB/s");
+        textView12.setText("00:00:00");
+
     }
 
     public Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
+            Log.i("MainActivity", "msg: " + msg.what);
             if (msg.what == 1) {
-                Log.i("MainActivity", "renewUI");
-                textView3.setText("A.A.A.A.A.A.A.A");
-                textView5.setText("127.0.0.1");
+                textView3.setText(ipv6addr);
+                textView5.setText(ipv4addr);
                 textView8.setText("1 M ↑ 2 MB/s");
                 textView10.setText("1 M ↓ 2 MB/s");
                 textView12.setText(String.format("%02d", mhour)+":"+
                         String.format("%02d", mminute)+":"+
                         String.format("%02d", msecond));
-                //renewUI();
+            }
+            if (msg.what == 2) {
+                ipv4addr = readBuf[0] + "." +
+                        readBuf[1] + "." +
+                        readBuf[2] + "." +
+                        readBuf[3];
             }
             super.handleMessage(msg);
         }
@@ -116,7 +149,6 @@ public class IVI extends AppCompatActivity {
             @Override
             public void run() {
                 msecond ++;
-                Log.i("MainActivity", "flag = " + flag);
                 if (msecond == 60) {
                     msecond = 0;
                     mminute ++;
@@ -127,9 +159,11 @@ public class IVI extends AppCompatActivity {
                 }
                 if (flag == 0) {
                     int readFlag = readPipe();
-                    if (readFlag > 0) {//这里需要修改，判断是否读到了ip地址
-//                        startVPN();
-                        //writePipe();//把虚接口描述符写入管道
+                    if (readFlag == 20) {//这里需要修改，判断是否读到了ip地址
+                        mHandler.sendEmptyMessage(2);
+                        startVPN();
+                        //把虚接口描述符写入管道
+                        writePipe();
                         flag = 1;
                     }
                 } else if (flag == 1) {
@@ -141,6 +175,7 @@ public class IVI extends AppCompatActivity {
                     //下载总包数
                     //上传速率（两次总上传流量相减）
                     //下载速率（两次总下载流量相减）
+                    Log.i("MainActivity", "pipe: " + readBuf);
                 }
                 mHandler.sendEmptyMessage(1); //需要刷新ui
             }
@@ -148,59 +183,34 @@ public class IVI extends AppCompatActivity {
     }
 
     public int readPipe() {
-        //File extDir = Environment.getExternalStorageDirectory();
-        //File file = new File(extDir,"vpn4over6_pipe");
+        byte buffer[] = new byte[32];
         try {
-            FileInputStream fileInputStream = new FileInputStream("/data/data/cn.edu.tsinghua.vpn4over6/vpn4over6_pipe_out");
-//            FileDescriptor fd =  fileInputStream.getFD();
-            BufferedInputStream in = new BufferedInputStream(fileInputStream);
-            byte buffer[] = new byte[256];
-            Log.i("MainActivity", "good");
-            try {
-                Log.i("MainActivity", "good2");
-                int readLen = fileInputStream.read(buffer); //读取管道
-                Log.i("MainActivity", "good3");
-                Log.i("MainActivity", "readLen = " + readLen);
-                readBuf = buffer;
-                String newmessage = new String(buffer,0, readLen, "US-ASCII");
-                Log.i("MainActivity", "newmessage: " + newmessage);
-                fileInputStream.close();
-//                try {
-//                    in.close();
-//                } catch (FileNotFoundException e) {
-//                    e.printStackTrace();
-//                }
-                return readLen;
-            } catch (IOException e){
-                e.printStackTrace();
-            }
+            int readLen = fileInputStream.read(buffer); //读取管道
+            readBuf = buffer;
+            fileInputStream.close();
+            return readLen;
         } catch (IOException e){
             e.printStackTrace();
         }
         return 0;
     }
 
-    public void writePipe() {
-        File extDir = Environment.getExternalStorageDirectory(); //获取当前路径 
-        File file = new File(extDir,"vpn4over6_pipe");
+    public int writePipe() {
+        byte[] b = new byte[4];
+        for (int i = 0; i < 4; i++) {
+            b[i] = (byte) (1 >> (24 - i * 8));
+        }
         try {
-            FileOutputStream fileOutputStream = new FileOutputStream(file);
-            BufferedOutputStream out = new BufferedOutputStream(fileOutputStream);
-            try {
-                out.write(writeBuf, 0, writeBuf.length); //writeBuf是存放数据的byte类型数组
-                try {
-                    out.flush();
-                    out.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-        } catch (IOException e) {
+            fileOutputStream.write(b, 0, b.length); //读取管道
+            writeBuf = b;
+            fileOutputStream.flush();
+            fileOutputStream.close();
+        } catch (IOException e){
             e.printStackTrace();
         }
+        return 0;
     }
+
 
     public void startVPN() {
         Intent intent = VpnService.prepare(getApplicationContext());
@@ -215,6 +225,11 @@ public class IVI extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK) {
             Intent intent = new Intent(this, mVPNService.class);
+            intent.putExtra("ipv4addr", ipv4addr);
+            intent.putExtra("route", route);
+            intent.putExtra("DNS1", DNS1);
+            intent.putExtra("DNS2", DNS2);
+            intent.putExtra("DNS3", DNS3);
             startService(intent);
         }
     }

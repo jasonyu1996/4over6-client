@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include "message.h"
 #include "cn_edu_tsinghua_vpn4over6_VPNBackend.h"
