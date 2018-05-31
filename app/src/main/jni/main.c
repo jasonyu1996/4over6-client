@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <string.h>
+#include <assert.h>
 
 #include "message.h"
 #include "cn_edu_tsinghua_vpn4over6_VPNBackend.h"
@@ -24,6 +25,7 @@
 #define PIPE_BUF_SIZE 2048
 #define stream_write_message(stream, message) stream_write((stream), (message), message_get_length((message)))
 #define SERVER_LIFE_SPAN 60
+#define INST_TUN_READY 0x1
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 typedef unsigned int ipv4_t;
@@ -137,6 +139,7 @@ static void parse_ip(char* ip_str){
 static void postman_loop(){
     static message_t msg;
     int tun_fd, i;
+    char inst;
     while(backend_running){
         stream_read_message(sock, &msg);
         switch(msg.type){
@@ -152,13 +155,21 @@ static void postman_loop(){
 
             pipe_write_var(pipe_v_out, router, ipv4_t);
 
+            pthread_mutex_unlock(&pipe_lock);
+
             for(i = 0; i < 3; i ++)
                 pipe_write_var(pipe_v_out, dns[i], ipv4_t);
 
             // fetch the fd for tun
-            pipe_read_var(pipe_v, tun_fd, int);
-            pthread_mutex_unlock(&pipe_lock);
-            tun_sock = sock_create(tun_fd);
+            while(1){
+                pipe_read_var(pipe_v, inst, char);
+                if(inst == INST_TUN_READY){
+                    tun_fd = open("/dev/tun", O_RDWR | O_APPEND);
+                    assert(tun_fd >= 0);
+                    tun_sock = sock_create(tun_fd);
+                    break;
+                }
+            }
 
             // start forwarding packets
             pthread_create(&pack_thread, NULL, pack_loop, NULL);
