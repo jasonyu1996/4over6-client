@@ -40,7 +40,8 @@ static pthread_mutex_t server_pulse_count_lock, pipe_lock;
 static pthread_t pulse_thread, postman_thread, pack_thread;
 static ipv4_t dns[3], host, router;
 static pipe_t* pipe_v, *pipe_v_out;
-static volatile int backend_running; // switch to start or end the threadse
+static volatile int backend_running; // switch to start or end the threads
+static int vpn_started;
 
 static void stream_read_message(stream_t* stream, message_t* msg){
     stream_read_var(stream, msg->length, int);
@@ -108,12 +109,16 @@ static void pulse_loop(){
         }
 
         // write statistics to the pipe
-        pthread_mutex_lock(&pipe_lock);
-        pipe_write_var(pipe_v_out, sent_packet_len, UL);
-        pipe_write_var(pipe_v_out, sent_packet_cnt, UL);
-        pipe_write_var(pipe_v_out, received_packet_len, UL);
-        pipe_write_var(pipe_v_out, received_packet_cnt, UL);
-        pthread_mutex_unlock(&pipe_lock);
+        if(vpn_started){
+            LOGD("Sent packet len: %llu", sent_packet_len);
+            LOGD("Sent packet cnt: %llu", sent_packet_cnt);
+            pipe_write_var(pipe_v_out, sent_packet_len, UL);
+            pipe_write_var(pipe_v_out, sent_packet_cnt, UL);
+            pipe_write_var(pipe_v_out, received_packet_len, UL);
+            pipe_write_var(pipe_v_out, received_packet_cnt, UL);
+            pthread_mutex_unlock(&pipe_lock);
+            pthread_mutex_lock(&pipe_lock);
+        }
     }
 }
 
@@ -174,6 +179,7 @@ static void postman_loop(){
 
             // start forwarding packets
             pthread_create(&pack_thread, NULL, pack_loop, NULL);
+            vpn_started = 1;
 
             break;
         case MESSAGE_TYPE_SERVICE_RESPONSE:
