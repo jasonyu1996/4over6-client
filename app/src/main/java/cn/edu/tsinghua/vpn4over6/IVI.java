@@ -168,16 +168,21 @@ public class IVI extends AppCompatActivity {
                     intBuf[i] = readBuf[i];
                     if (intBuf[i] < 0)
                         intBuf[i] += 256;
-//                    Log.i("MainActivity", "intBufi : " + intBuf[i]);
+                    Log.i("MainActivity", "intBufi : " + i + " " + intBuf[i]);
                 }
                 int rank = 0;
                 long sum = 0;
                 for(int i = 0; i < 4; i++){
                     sum = 0;
                     for(int j = 0; j < 8; j++) {
+<<<<<<< HEAD
                         rank = j + i * 8;
                         sum = sum + intBuf[rank];
                         sum = sum * 256;
+=======
+                        rank = 32 - j - i * 8 - 1;
+                        sum = (sum << 8) + intBuf[rank];
+>>>>>>> 86957daf5f88a32ff401135cb431b94787360e89
                     }
                     networkData[i] = sum;
                 }
@@ -204,7 +209,7 @@ public class IVI extends AppCompatActivity {
                     }
                 }
                 if (flag == 0) {
-                    int readFlag = readPipe();
+                    int readFlag = readPipe(20);
                     Log.i("MainActivity", "len = "+readFlag);
                     if (readFlag > 0) {//这里需要修改，判断是否读到了ip地址
                         mHandler.sendEmptyMessage(2);
@@ -214,7 +219,7 @@ public class IVI extends AppCompatActivity {
                         flag = 1;
                     }
                 } else if (flag == 1) {
-                    readPipe();
+                    readPipe(32);
                     mHandler.sendEmptyMessage(3);
                     //对读取到对流量信息做转换
                     //上联ipv6地址
@@ -230,12 +235,12 @@ public class IVI extends AppCompatActivity {
         }, 1000, 1000);
     }
 
-    public int readPipe() {
+    public int readPipe(int len) {
         try {
             byte[] buffer = new byte[32];
-            int readLen = fileInputStream.read(buffer); //读取管道
+            int readLen = fileInputStream.read(buffer, 0, len); //读取管道
             readBuf = buffer;
-            Log.i("MainActivity", "read : " + readBuf);
+            Log.i("MainActivity", "read : " + readBuf + " " + readLen);
             return readLen;
         } catch (IOException e){
             e.printStackTrace();
@@ -273,6 +278,9 @@ public class IVI extends AppCompatActivity {
         if (resultCode == RESULT_OK) {
             Intent intent = new Intent(this, mVPNService.class);
             intent.putExtra("data", ipv4addr+";"+
+                    route+";"+ DNS1+";"+
+                    DNS2+";"+ DNS3);
+            Log.i("vpn good " , ipv4addr+";"+
                     route+";"+ DNS1+";"+
                     DNS2+";"+ DNS3);
             startService(intent);
