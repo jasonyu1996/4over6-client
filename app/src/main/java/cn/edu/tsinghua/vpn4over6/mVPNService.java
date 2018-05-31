@@ -11,25 +11,25 @@ import android.util.Log;
 public class mVPNService extends VpnService{
 
     private static final String TAG = "mVPNService";
-
-    private String ipv4addr, route, DNS1, DNS2, DNS3;
-    private String mServerAddress = "127.0.0.1";
-    private int mServerPort = 1080;
-    private PendingIntent mConfigureIntent;
+//    private String ipv4addr = "13.8.0.2";
+//    private String route = "0.0.0.0";
+//    private String DNS1 = "59.66.16.64";
+//    private String DNS2 = "8.8.8.8";
+//    private String DNS3 = "202.106.0.20";
+    //private PendingIntent mConfigureIntent;
 
     private ParcelFileDescriptor mInterface;
-
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        ipv4addr = intent.getStringExtra("ipv4addr");
-        route = intent.getStringExtra("route");
-        DNS1 = intent.getStringExtra("DNS1");
-        DNS2 = intent.getStringExtra("DNS2");
-        DNS3 = intent.getStringExtra("DNS3");
-
-        Log.i("mVPNService", "ipv4addr: " + ipv4addr);
+        String data = intent.getStringExtra("data");
+        String[] dataArray = data.split(";");
+        String ipv4addr = dataArray[0];
+        String route = dataArray[1];
+        String DNS1 = dataArray[2];
+        String DNS2 = dataArray[3];
+        String DNS3 = dataArray[4];
 
         if (mInterface == null) {
             Builder builder = new Builder();
@@ -40,6 +40,7 @@ public class mVPNService extends VpnService{
             builder.addDnsServer(DNS1);
             builder.addDnsServer(DNS2);
             builder.addDnsServer(DNS3);
+            builder.setSession("mVPNService");
 
             // Close the old interface since the parameters have been changed.
             try {
@@ -49,8 +50,7 @@ public class mVPNService extends VpnService{
             }
 
             // Create a new interface using the builder and save the parameters.
-            mInterface = builder.setSession("VPNServiceDemo")
-                    .setConfigureIntent(mConfigureIntent).establish();
+            mInterface = builder.establish();
         }
 
         return START_STICKY;

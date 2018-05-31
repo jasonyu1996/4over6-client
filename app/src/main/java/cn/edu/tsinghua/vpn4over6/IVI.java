@@ -50,6 +50,7 @@ public class IVI extends AppCompatActivity {
 
     private byte[] readBuf;
     private byte[] writeBuf;
+    private int[] intBuf;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,6 +108,7 @@ public class IVI extends AppCompatActivity {
         }
 
         readBuf = new byte[32];
+        intBuf = new int[32];
 
         textView3 = (TextView) findViewById(R.id.textView3);
         textView5 = (TextView) findViewById(R.id.textView5);
@@ -135,10 +137,31 @@ public class IVI extends AppCompatActivity {
                         String.format("%02d", msecond));
             }
             if (msg.what == 2) {
-                ipv4addr = readBuf[0] + "." +
-                        readBuf[1] + "." +
-                        readBuf[2] + "." +
-                        readBuf[3];
+                for(int i = 0; i < 20; i++) {
+                    intBuf[i] = readBuf[i];
+                    if (intBuf[i] < 0)
+                        intBuf[i] += 256;
+                }
+                ipv4addr = intBuf[0] + "." +
+                        intBuf[1] + "." +
+                        intBuf[2] + "." +
+                        intBuf[3];
+                route = intBuf[4] + "." +
+                        intBuf[5] + "." +
+                        intBuf[6] + "." +
+                        intBuf[7];
+                DNS1 = intBuf[8] + "." +
+                        intBuf[9] + "." +
+                        intBuf[10] + "." +
+                        intBuf[11];
+                DNS2 = intBuf[12] + "." +
+                        intBuf[13] + "." +
+                        intBuf[14] + "." +
+                        intBuf[15];
+                DNS3 = intBuf[16] + "." +
+                        intBuf[17] + "." +
+                        intBuf[18] + "." +
+                        intBuf[19];
             }
             super.handleMessage(msg);
         }
@@ -225,11 +248,9 @@ public class IVI extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK) {
             Intent intent = new Intent(this, mVPNService.class);
-            intent.putExtra("ipv4addr", ipv4addr);
-            intent.putExtra("route", route);
-            intent.putExtra("DNS1", DNS1);
-            intent.putExtra("DNS2", DNS2);
-            intent.putExtra("DNS3", DNS3);
+            intent.putExtra("data", ipv4addr+";"+
+                    route+";"+ DNS1+";"+
+                    DNS2+";"+ DNS3);
             startService(intent);
         }
     }

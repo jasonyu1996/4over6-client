@@ -57,7 +57,7 @@ static void pack_loop(){
     unsigned int payload_len, rem_len;
     while(backend_running){
         sock_read_var(tun_sock, header, struct IPv4Header);
-        LOGD("A packet intercepted at tun.");
+        //LOGD("A packet intercepted at tun.");
 
         // split into multiple packets
         memcpy(msg.data, &header, sizeof(struct IPv4Header));
