@@ -175,7 +175,7 @@ public class IVI extends AppCompatActivity {
                 for(int i = 0; i < 4; i++){
                     sum = 0;
                     for(int j = 0; j < 8; j++) {
-                        rank = 31 - j - i * 8;
+                        rank = j + i * 8;
                         sum = sum + intBuf[rank];
                         sum = sum * 256;
                     }
