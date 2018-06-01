@@ -67,14 +67,14 @@ static void pack_loop(){
         sock_read(tun_sock, msg.data + sizeof(struct IPv4Header), payload_len);
         msg.length = htonl(payload_len + sizeof(struct IPv4Header) + sizeof(int) + sizeof(char));
 
-        stream_write_message(tun_sock, &msg);
+        stream_write_message(sock, &msg);
 
         // subsequent packet
         rem_len = msg.length - payload_len - sizeof(struct IPv4Header);
         while(rem_len){
             payload_len = min(rem_len, MAX_MESSAGE_PAYLOAD);
             msg.length = htonl(payload_len + sizeof(int) + sizeof(char));
-            stream_write_message(tun_sock, &msg);
+            stream_write_message(sock, &msg);
 
             rem_len -= payload_len;
         }
@@ -167,15 +167,8 @@ static void postman_loop(){
                 pipe_write_var(pipe_v_out, dns[i], ipv4_t);
 
             // fetch the fd for tun
-            while(1){
-                pipe_read_var(pipe_v, inst, char);
-                if(inst == INST_TUN_READY){
-                    tun_fd = open("/dev/tun", O_RDWR | O_APPEND);
-                    assert(tun_fd >= 0);
-                    tun_sock = sock_create(tun_fd);
-                    break;
-                }
-            }
+            pipe_read_var(pipe_v, tun_fd, int);
+            assert(tun_fd >= 0);
 
             // start forwarding packets
             pthread_create(&pack_thread, NULL, pack_loop, NULL);
