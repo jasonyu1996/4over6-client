@@ -44,12 +44,18 @@ public class IVI extends AppCompatActivity {
     private int mhour = 0;
     private int mminute = 0;
     private int msecond = 0;
+    private long packSentNum = 0;
+    private long packRecvNum = 0;
+    private double packSentSpeed = 0;
+    private double packRecvSpeed = 0;
+    private double packSentSize = 0;
+    private double packRecvSize = 0;
 
     private String ipv4addr, route, DNS1, DNS2, DNS3;
     private String ipv6addr;
 
     private byte[] readBuf;
-    private byte[] writeBuf;
+//    private byte[] writeBuf;
     private int[] intBuf;
     private long[] networkData;
 
@@ -119,9 +125,10 @@ public class IVI extends AppCompatActivity {
         textView12 = (TextView) findViewById(R.id.textView12);
         textView3.setText("尚未连接");
         textView5.setText("尚未连接");
-        textView8.setText("0 M ↑ 0 MB/s");
-        textView10.setText("0 M ↓ 0 MB/s");
+        textView8.setText("-");
+        textView10.setText("-");
         textView12.setText("00:00:00");
+
 
     }
 
@@ -132,43 +139,50 @@ public class IVI extends AppCompatActivity {
             if (msg.what == 1) {
                 textView3.setText(ipv6addr);
                 textView5.setText(ipv4addr);
-                textView8.setText("1 M ↑ 2 MB/s");
-                textView10.setText("1 M ↓ 2 MB/s");
+                textView8.setText(packSentNum + " Packets ↑ "
+                        + packSentSize +" M ↑ "
+                        + packSentSpeed +" MB/s");
+                textView10.setText(packRecvNum + " Packets ↓ "
+                        + packRecvSize +" M ↓ "
+                        + packRecvSpeed +" MB/s");
                 textView12.setText(String.format("%02d", mhour)+":"+
                         String.format("%02d", mminute)+":"+
                         String.format("%02d", msecond));
             } else if (msg.what == 2) {
-                for(int i = 0; i < 20; i++) {
+                int sum = 0;
+                for (int i = 0; i < 20; i++) {
                     intBuf[i] = readBuf[i];
                     if (intBuf[i] < 0)
                         intBuf[i] += 256;
+                    sum += intBuf[i];
                 }
-                ipv4addr = intBuf[0] + "." +
-                        intBuf[1] + "." +
-                        intBuf[2] + "." +
-                        intBuf[3];
-                route = intBuf[4] + "." +
-                        intBuf[5] + "." +
-                        intBuf[6] + "." +
-                        intBuf[7];
-                DNS1 = intBuf[8] + "." +
-                        intBuf[9] + "." +
-                        intBuf[10] + "." +
-                        intBuf[11];
-                DNS2 = intBuf[12] + "." +
-                        intBuf[13] + "." +
-                        intBuf[14] + "." +
-                        intBuf[15];
-                DNS3 = intBuf[16] + "." +
-                        intBuf[17] + "." +
-                        intBuf[18] + "." +
-                        intBuf[19];
+                if (sum > 0) {
+                    ipv4addr = intBuf[0] + "." +
+                            intBuf[1] + "." +
+                            intBuf[2] + "." +
+                            intBuf[3];
+                    route = intBuf[4] + "." +
+                            intBuf[5] + "." +
+                            intBuf[6] + "." +
+                            intBuf[7];
+                    DNS1 = intBuf[8] + "." +
+                            intBuf[9] + "." +
+                            intBuf[10] + "." +
+                            intBuf[11];
+                    DNS2 = intBuf[12] + "." +
+                            intBuf[13] + "." +
+                            intBuf[14] + "." +
+                            intBuf[15];
+                    DNS3 = intBuf[16] + "." +
+                            intBuf[17] + "." +
+                            intBuf[18] + "." +
+                            intBuf[19];
+                }
             } else if (msg.what == 3) {
                 for(int i = 0; i < 32; i++) {
                     intBuf[i] = readBuf[i];
                     if (intBuf[i] < 0)
                         intBuf[i] += 256;
-                    Log.i("MainActivity", "intBufi : " + i + " " + intBuf[i]);
                 }
                 int rank = 0;
                 long sum = 0;
@@ -180,10 +194,16 @@ public class IVI extends AppCompatActivity {
                     }
                     networkData[i] = sum;
                 }
-                Log.i("MainActivity", "data1 : " + networkData[0]);
-                Log.i("MainActivity", "data2 : " + networkData[1]);
-                Log.i("MainActivity", "data3 : " + networkData[2]);
-                Log.i("MainActivity", "data4 : " + networkData[3]);
+                packSentNum = networkData[3];
+                packRecvNum = networkData[2];
+                packSentSpeed = ((double) networkData[1] -  packSentSize) / 1000000;
+                packRecvSpeed = ((double) networkData[0] -  packRecvSize) / 1000000;
+                packSentSize = (double) networkData[1] / 1000000;
+                packRecvSize = (double) networkData[0] / 1000000;
+                Log.i("MainActivity", "data0 : " + networkData[0]);
+                Log.i("MainActivity", "data1 : " + networkData[1]);
+                Log.i("MainActivity", "data2 : " + networkData[2]);
+                Log.i("MainActivity", "data3 : " + networkData[3]);
             }
             super.handleMessage(msg);
         }
@@ -205,12 +225,14 @@ public class IVI extends AppCompatActivity {
                 if (flag == 0) {
                     int readFlag = readPipe(20);
                     Log.i("MainActivity", "len = "+readFlag);
-                    if (readFlag > 0) {//这里需要修改，判断是否读到了ip地址
+                    if (readFlag == 20) {//这里需要修改，判断是否读到了ip地址
                         mHandler.sendEmptyMessage(2);
-                        startVPN();
-                        //把虚接口描述符写入管道
-                        writePipe();
-                        flag = 1;
+                        if (ipv4addr != null) {
+                            startVPN();
+                            //把虚接口描述符写入管道
+//                            writePipe();
+                            flag = 1;
+                        }
                     }
                 } else if (flag == 1) {
                     readPipe(32);
@@ -242,20 +264,19 @@ public class IVI extends AppCompatActivity {
         return 0;
     }
 
-    public int writePipe() {
-        byte[] b = new byte[4];
-        for (int i = 0; i < 4; i++) {
-            b[i] = (byte) (1 >> (24 - i * 8));
-        }
-        try {
-            fileOutputStream.write(b, 0, b.length); //读取管道
-            writeBuf = b;
-            fileOutputStream.flush();
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-        return 0;
-    }
+//    public void writePipe() {
+//        byte[] b = new byte[4];
+//        for (int i = 0; i < 4; i++) {
+//            b[i] = (byte) (1 >> (24 - i * 8));
+//        }
+//        try {
+//            fileOutputStream.write(b, 0, b.length);
+//            writeBuf = b;
+//            fileOutputStream.flush();
+//        } catch (IOException e){
+//            e.printStackTrace();
+//        }
+//    }
 
 
     public void startVPN() {
@@ -274,7 +295,7 @@ public class IVI extends AppCompatActivity {
             intent.putExtra("data", ipv4addr+";"+
                     route+";"+ DNS1+";"+
                     DNS2+";"+ DNS3);
-            Log.i("vpn good " , ipv4addr+";"+
+            Log.i("vpn recv: " , ipv4addr+";"+
                     route+";"+ DNS1+";"+
                     DNS2+";"+ DNS3);
             startService(intent);

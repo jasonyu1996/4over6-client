@@ -6,6 +6,10 @@ import android.net.VpnService;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 
 public class mVPNService extends VpnService{
 
@@ -42,6 +46,29 @@ public class mVPNService extends VpnService{
             }
 
             mInterface = builder.establish();
+            if(protect(mInterface.detachFd())){
+                Log.i("MainActivity", "mVPNService, tunnel protected.");
+            };
+
+            FileOutputStream fileOutputStream;
+            try{
+                fileOutputStream =
+                        new FileOutputStream("/data/data/"+
+                        "cn.edu.tsinghua.vpn4over6"+
+                        "/vpn4over6_pipe_in");
+                byte[] b = new byte[4];
+                for (int i = 0; i < 4; i++) {
+                    b[i] = (byte) (mInterface.detachFd() >> (24 - i * 8));
+                }
+                try {
+                    fileOutputStream.write(b, 0, b.length);
+                    fileOutputStream.flush();
+                } catch (IOException e){
+                    e.printStackTrace();
+                }
+            } catch (FileNotFoundException e){
+                e.printStackTrace();
+            }
         }
 
         return START_STICKY;
