@@ -47,10 +47,8 @@ public class mVPNService extends VpnService{
 
             mInterface = builder.establish();
             int interfaceFd = mInterface.detachFd();
-            if(protect(interfaceFd)){
-                Log.i("MainActivity", "mVPNService, tunnel protected. "
-                        + interfaceFd);
-            };
+            Log.i("MainActivity", "detachFd : " + interfaceFd);
+            protect(interfaceFd);
 
             FileOutputStream fileOutputStream;
             try{
