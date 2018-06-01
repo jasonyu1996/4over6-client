@@ -46,8 +46,10 @@ public class mVPNService extends VpnService{
             }
 
             mInterface = builder.establish();
-            if(protect(mInterface.detachFd())){
-                Log.i("MainActivity", "mVPNService, tunnel protected.");
+            int interfaceFd = mInterface.detachFd();
+            if(protect(interfaceFd)){
+                Log.i("MainActivity", "mVPNService, tunnel protected. "
+                        + interfaceFd);
             };
 
             FileOutputStream fileOutputStream;
@@ -58,7 +60,7 @@ public class mVPNService extends VpnService{
                         "/vpn4over6_pipe_in");
                 byte[] b = new byte[4];
                 for (int i = 0; i < 4; i++) {
-                    b[i] = (byte) (mInterface.detachFd() >> (24 - i * 8));
+                    b[i] = (byte) (interfaceFd >> (24 - i * 8));
                 }
                 try {
                     fileOutputStream.write(b, 0, b.length);
