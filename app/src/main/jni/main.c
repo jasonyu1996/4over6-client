@@ -34,7 +34,7 @@ typedef unsigned int ipv4_t;
 typedef unsigned long long UL;
 
 extern const message_t MESSAGE_IP_REQUEST, MESSAGE_PULSE;
-static sock_t *sock, *tun_sock;
+static sock_t *sock_server, *tun_sock;
 static int pulse_count, server_pulse_count = 0;
 static UL sent_packet_len, sent_packet_cnt, received_packet_len, received_packet_cnt;
 static pthread_mutex_t server_pulse_count_lock, pipe_lock;
@@ -45,9 +45,16 @@ static volatile int backend_running; // switch to start or end the threads
 static int vpn_started;
 
 static void stream_read_message(stream_t* stream, message_t* msg){
-    stream_read_var(stream, msg->length, int);
+    while(stream_read_var(stream, msg->length, int) != sizeof(int));
     int len = message_get_length(msg);
-    stream_read(stream, &msg->type, len - sizeof(int));
+    assert(len <= MAX_MESSAGE_PAYLOAD + sizeof(int) + sizeof(char));
+    int ss = len - sizeof(int);
+    int rr = 0;
+    while(ss){
+        int k = stream_read(stream, (char*)(&msg->type) + rr, ss);
+        rr += k;
+        ss -= k;
+    }
 }
 
 inline unsigned int bit_reverse(unsigned int val, int len){
@@ -74,13 +81,10 @@ static void pack_loop(){
     static message_t msg = {
         .type = MESSAGE_TYPE_SERVICE_REQUEST,
     };
-    LOGD("MSG TYPE %d", msg.type);
-    LOGD("Size of header: %d", sizeof(struct IPv4Header));
     unsigned int payload_len, c_len, t_len, r;
     while(backend_running){
         //int r = sock_read_unblock(tun_sock, header, sizeof(buf));
         t_len = sock_read_unblock(tun_sock, buf, sizeof(buf));
-        LOGD("packet ! %d %d", t_len, header->version);
         //sock_read_var(tun_sock, header, struct IPv4Header);
 
         // split into multiple packets
@@ -114,7 +118,7 @@ static void pack_loop(){
             payload_len = min(r, MAX_MESSAGE_PAYLOAD);
             memcpy(msg.data, buf + c_len, payload_len);
             msg.length = payload_len + sizeof(int) + sizeof(char);
-            assert(stream_write_message(sock, &msg) >= 0);
+            stream_write_message(sock_server, &msg);
 
 
             r -= payload_len;
@@ -144,7 +148,7 @@ static void pulse_loop(){
         if(pulse_count > 20){
             pulse_count = 0;
             // send pulse signal to server every 20 secs
-            stream_write_message(sock, &MESSAGE_PULSE);
+            stream_write_message(sock_server, &MESSAGE_PULSE);
 
             LOGD("Pulse sent!");
         }
@@ -188,7 +192,7 @@ static void postman_loop(){
     int tun_fd, i;
     char inst;
     while(backend_running){
-        stream_read_message(sock, &msg);
+        stream_read_message(sock_server, &msg);
         switch(msg.type){
         case MESSAGE_TYPE_IP_RESPONSE:
             LOGD("IP Response pack received: %s, %d", msg.data, message_get_length(&msg));
@@ -224,7 +228,6 @@ static void postman_loop(){
 
             break;
         case MESSAGE_TYPE_SERVICE_RESPONSE:
-            LOGD("Service response received!");
             sock_write(tun_sock, msg.data, message_get_length(&msg) - sizeof(char) - sizeof(int));
             ++ received_packet_cnt;
             received_packet_len += message_get_length(&msg) - sizeof(char) - sizeof(int);
@@ -246,8 +249,6 @@ static void postman_loop(){
 
 JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
   (JNIEnv * env, jobject obj){
-    LOGD("?????r");
-
     int sock_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if(sock_fd == -1)
         return -1;
@@ -276,9 +277,9 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
     LOGD("About to fetch IP info");
 
 
-    sock = sock_create(sock_fd);
+    sock_server = sock_create(sock_fd);
 
-    stream_write_message(sock, &MESSAGE_IP_REQUEST);
+    stream_write_message(sock_server, &MESSAGE_IP_REQUEST);
 
     // initialize the mutexes
     pthread_mutex_init(&server_pulse_count_lock, NULL);
@@ -303,7 +304,7 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_endThread
     // this implementation is problematic
     // TODO: try making IO nonblocking
     backend_running = 0;
-    sock_clean(sock);
+    sock_clean(sock_server);
     sock_clean(tun_sock);
     pipe_clean(pipe_v);
 
