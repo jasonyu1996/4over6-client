@@ -10,6 +10,7 @@
 #include <string.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "message.h"
 #include "cn_edu_tsinghua_vpn4over6_VPNBackend.h"
@@ -49,28 +50,56 @@ static void stream_read_message(stream_t* stream, message_t* msg){
     stream_read(stream, &msg->type, len - sizeof(int));
 }
 
+inline unsigned int bit_reverse(unsigned int val, int len){
+    unsigned int ret = 0;
+    int i;
+    for(i = 0; i < len; i ++)
+        ret |= ((val >> i) & 1) << (len - i - 1);
+    return ret;
+}
+
+inline int sock_read_unblock(sock_t* sock, void* buf, int n){
+    int ret;
+    while((ret = sock_read(sock, buf, n)) == -1 && errno == EAGAIN);
+    if(ret < 0)
+        LOGD("Error %d", errno);
+    return ret;
+}
+
 // check the tun interface
 static void pack_loop(){
-    struct IPv4Header header;
+    static char buf[1 << 17];
+
+    struct IPv4Header* header = (struct IPv4Header*)buf;
     static message_t msg = {
         .type = MESSAGE_TYPE_SERVICE_REQUEST,
     };
-    unsigned int payload_len, rem_len;
+    LOGD("MSG TYPE %d", msg.type);
+    LOGD("Size of header: %d", sizeof(struct IPv4Header));
+    unsigned int payload_len, c_len, t_len, r;
     while(backend_running){
-        sock_read_var(tun_sock, header, struct IPv4Header);
-        //LOGD("A packet intercepted at tun.");
+        //int r = sock_read_unblock(tun_sock, header, sizeof(buf));
+        t_len = sock_read_unblock(tun_sock, buf, sizeof(buf));
+        LOGD("packet ! %d %d", t_len, header->version);
+        //sock_read_var(tun_sock, header, struct IPv4Header);
 
         // split into multiple packets
-        memcpy(msg.data, &header, sizeof(struct IPv4Header));
+        //memcpy(msg.data, header, sizeof(struct IPv4Header));
+        //unsigned int len = bit_reverse(header->length, 16);
+        //LOGD("A packet intercepted at tun. Len %u, version %u", len, bit_reverse(header->version, 4));
+        // LOGD("A packet intercepted!");
+/*
         // first 4over6 packet
-        payload_len = min(header.length, MAX_MESSAGE_PAYLOAD) - sizeof(struct IPv4Header);
-        sock_read(tun_sock, msg.data + sizeof(struct IPv4Header), payload_len);
-        msg.length = htonl(payload_len + sizeof(struct IPv4Header) + sizeof(int) + sizeof(char));
+        payload_len = min(len, MAX_MESSAGE_PAYLOAD) - sizeof(struct IPv4Header);
+        sock_read_unblock(tun_sock, msg.data + sizeof(struct IPv4Header), payload_len);
+
+        unsigned int mlen = payload_len + sizeof(struct IPv4Header) + sizeof(int) + sizeof(char);
+        msg.length = htonl(mlen);
 
         stream_write_message(sock, &msg);
 
         // subsequent packet
-        rem_len = msg.length - payload_len - sizeof(struct IPv4Header);
+        rem_len = len - (mlen - sizeof(int) - sizeof(char));
         while(rem_len){
             payload_len = min(rem_len, MAX_MESSAGE_PAYLOAD);
             msg.length = htonl(payload_len + sizeof(int) + sizeof(char));
@@ -78,9 +107,21 @@ static void pack_loop(){
 
             rem_len -= payload_len;
         }
+*/
+        r = t_len;
+        c_len = 0;
+        while(r){
+            payload_len = min(r, MAX_MESSAGE_PAYLOAD);
+            memcpy(msg.data, buf + c_len, payload_len);
+            msg.length = payload_len + sizeof(int) + sizeof(char);
+            assert(stream_write_message(sock, &msg) >= 0);
 
+
+            r -= payload_len;
+            c_len += payload_len;
+        }
         ++ sent_packet_cnt;
-        sent_packet_len += header.length;
+        sent_packet_len += t_len;
     }
 }
 
@@ -150,7 +191,8 @@ static void postman_loop(){
         stream_read_message(sock, &msg);
         switch(msg.type){
         case MESSAGE_TYPE_IP_RESPONSE:
-            LOGD("IP Response pack received: %s", msg.data);
+            LOGD("IP Response pack received: %s, %d", msg.data, message_get_length(&msg));
+
             parse_ip(msg.data);
 
 
@@ -168,14 +210,21 @@ static void postman_loop(){
 
             // fetch the fd for tun
             pipe_read_var(pipe_v, tun_fd, int);
+            LOGD("tun_fd received: %d", tun_fd);
             assert(tun_fd >= 0);
+            tun_sock = sock_create(tun_fd);
+
+            //stream_write_message(sock, &MESSAGE_IP_REQUEST);
 
             // start forwarding packets
             pthread_create(&pack_thread, NULL, pack_loop, NULL);
             vpn_started = 1;
 
+
+
             break;
         case MESSAGE_TYPE_SERVICE_RESPONSE:
+            LOGD("Service response received!");
             sock_write(tun_sock, msg.data, message_get_length(&msg) - sizeof(char) - sizeof(int));
             ++ received_packet_cnt;
             received_packet_len += message_get_length(&msg) - sizeof(char) - sizeof(int);
@@ -197,27 +246,34 @@ static void postman_loop(){
 
 JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
   (JNIEnv * env, jobject obj){
+    LOGD("?????r");
 
     int sock_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if(sock_fd == -1)
-        return errno;
+        return -1;
     struct sockaddr_in6 addr;
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(SERVER_PORT);
+
+    LOGD("About to connect to server");
 
     //2402:f000:1:4417::900
     inet_pton(AF_INET6, SERVER_ADDRESS, &addr.sin6_addr);
     int res = connect(sock_fd, &addr, sizeof(addr));
 
     if(res != 0){
+        LOGD("Connection error: %d", errno);
         return res;
     }
+
+    LOGD("Server connected");
 
     pipe_v = pipe_create(IN_PIPE_NAME);
     pipe_v_out = pipe_create(OUT_PIPE_NAME);
 
 
     char dumb;
+    LOGD("About to fetch IP info");
 
 
     sock = sock_create(sock_fd);
@@ -235,7 +291,9 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
     pthread_create(&pulse_thread, NULL, pulse_loop, NULL);
 
 
-    return 0;
+    LOGD("sock_fd : %d", sock_fd);
+
+    return sock_fd;
 }
 
 

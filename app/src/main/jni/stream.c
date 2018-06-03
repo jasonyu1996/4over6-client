@@ -8,12 +8,12 @@
 #include "debug.h"
 
 
-void stream_write(stream_t* stream, const void* buf, int sz){
-    write(stream->fd, buf, sz);
+int stream_write(stream_t* stream, const void* buf, int sz){
+    return write(stream->fd, buf, sz);
 }
 
-void stream_read(stream_t* stream, void* buf, int sz){
-    read(stream->fd, buf, sz);
+int stream_read(stream_t* stream, void* buf, int sz){
+    return read(stream->fd, buf, sz);
 }
 
 void stream_clean(stream_t* stream){

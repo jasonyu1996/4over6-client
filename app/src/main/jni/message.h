@@ -22,7 +22,7 @@ typedef struct Message{
 } message_t;
 
 inline int message_get_length(message_t* msg){
-    return ntohl(msg->length);
+    return msg->length;
 }
 
 message_t* message_create(char type, void* buf, int len);

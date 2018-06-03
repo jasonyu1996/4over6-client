@@ -50,6 +50,7 @@ public class IVI extends AppCompatActivity {
     private double packRecvSpeed = 0;
     private double packSentSize = 0;
     private double packRecvSize = 0;
+    private int socketFd;
 
     private String ipv4addr, route, DNS1, DNS2, DNS3;
     private String ipv6addr;
@@ -63,7 +64,7 @@ public class IVI extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
 
         VPNBackend vpnBackend = new VPNBackend();
-        Log.i("MainActivity", "result: " + vpnBackend.startThread());
+        Log.i("MainActivity", "result: " + (socketFd = vpnBackend.startThread()));
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ivi);
@@ -178,6 +179,14 @@ public class IVI extends AppCompatActivity {
                             intBuf[18] + "." +
                             intBuf[19];
                 }
+                if (ipv4addr != null) {
+                    Log.i("IVI", "good");
+
+                    startVPN();
+                    //把虚接口描述符写入管道
+//                            writePipe();
+                    flag = 1;
+                }
             } else if (msg.what == 3) {
                 for(int i = 0; i < 32; i++) {
                     intBuf[i] = readBuf[i];
@@ -227,12 +236,9 @@ public class IVI extends AppCompatActivity {
                     Log.i("MainActivity", "len = "+readFlag);
                     if (readFlag == 20) {//这里需要修改，判断是否读到了ip地址
                         mHandler.sendEmptyMessage(2);
-                        if (ipv4addr != null) {
-                            startVPN();
-                            //把虚接口描述符写入管道
-//                            writePipe();
-                            flag = 1;
-                        }
+                        Log.i("IVI", "bad");
+
+
                     }
                 } else if (flag == 1) {
                     readPipe(32);
@@ -295,6 +301,7 @@ public class IVI extends AppCompatActivity {
             intent.putExtra("data", ipv4addr+";"+
                     route+";"+ DNS1+";"+
                     DNS2+";"+ DNS3);
+            intent.putExtra("protectFd", socketFd);
             Log.i("vpn recv: " , ipv4addr+";"+
                     route+";"+ DNS1+";"+
                     DNS2+";"+ DNS3);

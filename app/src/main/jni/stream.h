@@ -10,8 +10,8 @@ typedef struct Stream {
     int fd;
 } stream_t;
 
-void stream_write(stream_t* stream, const void* buf, int sz);
-void stream_read(stream_t* stream, void* buf, int sz);
+int stream_write(stream_t* stream, const void* buf, int sz);
+int stream_read(stream_t* stream, void* buf, int sz);
 void stream_clean(stream_t* stream);
 
 #define stream_read_var(stream, var, type) stream_read((stream), &(var), sizeof(type))
