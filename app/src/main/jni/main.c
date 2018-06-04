@@ -42,16 +42,32 @@ static pthread_t pulse_thread, postman_thread, pack_thread;
 static ipv4_t dns[3], host, router;
 static pipe_t* pipe_v, *pipe_v_out;
 static volatile int backend_running; // switch to start or end the threads
-static int vpn_started;
+static volatile int vpn_started;
 
 static void stream_read_message(stream_t* stream, message_t* msg){
-    while(stream_read_var(stream, msg->length, int) != sizeof(int));
-    int len = message_get_length(msg);
-    assert(len <= MAX_MESSAGE_PAYLOAD + sizeof(int) + sizeof(char));
-    int ss = len - sizeof(int);
+    int ss = sizeof(int) + sizeof(char);
     int rr = 0;
     while(ss){
-        int k = stream_read(stream, (char*)(&msg->type) + rr, ss);
+        int k = stream_read(stream, (char*)msg + rr, ss);
+        if(k < 0){
+            LOGD("k assert failed %d, %d", k, errno);
+        }
+        rr += k;
+        ss -= k;
+    }
+    //stream_read_var(stream, msg->length, int) != sizeof(int));
+    int len = message_get_length(msg);
+    if(!(len <= MAX_MESSAGE_PAYLOAD + sizeof(int) + sizeof(char) && len >= sizeof(int) + sizeof(char))){
+        LOGD("ASSERTION FAILED! %d %d", len, msg->type);
+    }
+    assert(len <= MAX_MESSAGE_PAYLOAD + sizeof(int) + sizeof(char) && len >= sizeof(int) + sizeof(char));
+    ss = len - sizeof(int) - sizeof(char);
+    rr = 0;
+    while(ss){
+        int k = stream_read(stream, msg->data + rr, ss);
+        if(k < 0){
+            LOGD("k assert2 failed %d, %d", k, errno);
+        }
         rr += k;
         ss -= k;
     }
@@ -85,6 +101,12 @@ static void pack_loop(){
     while(backend_running){
         //int r = sock_read_unblock(tun_sock, header, sizeof(buf));
         t_len = sock_read_unblock(tun_sock, buf, sizeof(buf));
+        if(t_len < 0){
+            LOGD("t_len assertion failed!");
+        }
+        assert(t_len >= 0);
+        //assert(vpn_started == 1);
+
         //sock_read_var(tun_sock, header, struct IPv4Header);
 
         // split into multiple packets
@@ -124,8 +146,10 @@ static void pack_loop(){
             r -= payload_len;
             c_len += payload_len;
         }
+        //assert(vpn_started == 1);
         ++ sent_packet_cnt;
         sent_packet_len += t_len;
+
     }
 }
 
@@ -148,15 +172,18 @@ static void pulse_loop(){
         if(pulse_count > 20){
             pulse_count = 0;
             // send pulse signal to server every 20 secs
+
             stream_write_message(sock_server, &MESSAGE_PULSE);
 
-            LOGD("Pulse sent!");
+            LOGD("Pulse sent! %d", vpn_started);
         }
 
         // write statistics to the pipe
         if(vpn_started){
             LOGD("Sent packet len: %llu", sent_packet_len);
             LOGD("Sent packet cnt: %llu", sent_packet_cnt);
+            LOGD("Received packet len: %llu", received_packet_len);
+            LOGD("Received packet cnt: %llu", received_packet_cnt);
             pipe_write_var(pipe_v_out, sent_packet_len, UL);
             pipe_write_var(pipe_v_out, sent_packet_cnt, UL);
             pipe_write_var(pipe_v_out, received_packet_len, UL);
@@ -165,6 +192,7 @@ static void pulse_loop(){
             pthread_mutex_lock(&pipe_lock);
         }
     }
+    LOGD("!!!!! EXITING");
 }
 
 // parse the ip info from the server
@@ -193,6 +221,7 @@ static void postman_loop(){
     char inst;
     while(backend_running){
         stream_read_message(sock_server, &msg);
+        //assert(vpn_started == 1);
         switch(msg.type){
         case MESSAGE_TYPE_IP_RESPONSE:
             LOGD("IP Response pack received: %s, %d", msg.data, message_get_length(&msg));
@@ -213,7 +242,7 @@ static void postman_loop(){
                 pipe_write_var(pipe_v_out, dns[i], ipv4_t);
 
             // fetch the fd for tun
-            pipe_read_var(pipe_v, tun_fd, int);
+            while(pipe_read_var(pipe_v, tun_fd, int) != sizeof(int));
             LOGD("tun_fd received: %d", tun_fd);
             assert(tun_fd >= 0);
             tun_sock = sock_create(tun_fd);
@@ -273,7 +302,6 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
     pipe_v_out = pipe_create(OUT_PIPE_NAME);
 
 
-    char dumb;
     LOGD("About to fetch IP info");
 
 
