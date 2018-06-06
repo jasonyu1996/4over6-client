@@ -73,7 +73,8 @@ public class IVI extends AppCompatActivity {
         Toolbar mToolBar = findViewById(R.id.toolbar);
         setSupportActionBar(mToolBar);
 
-        FloatingActionButton mFab = findViewById(R.id.fab);
+        final FloatingActionButton mFab = findViewById(R.id.fab);
+        mFab.setBackgroundColor(0x000000);
         mFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) { //点击悬浮按钮，开启或停止服务
@@ -84,16 +85,18 @@ public class IVI extends AppCompatActivity {
                         running = 1;
                         Snackbar.make(view, "服务已开启。", Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
+                        mFab.setBackgroundColor(0x009966);
                     } else if (running == 1) { //服务已经开启，点击按钮停止服务
-                        if (mTimer != null) {
-                            mTimer.cancel();
-                        }
                         running = 0;
                         msecond = 0;
                         mminute = 0;
                         mhour = 0;
+                        if (mTimer != null) {
+                            mTimer.cancel();
+                        }
                         Snackbar.make(view, "服务已停止。", Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
+                        mFab.setBackgroundColor(0x666666);
                     }
                 } catch (IllegalStateException e) {
                     e.printStackTrace();
@@ -139,7 +142,6 @@ public class IVI extends AppCompatActivity {
         public void handleMessage(Message msg) {
             Log.i("MainActivity", "msg: " + msg.what);
             if (msg.what == 1) {
-                textView3.setText(ipv6addr);
                 textView5.setText(ipv4addr);
                 textView8.setText(packSentNum + " Packets ↑ "
                         + packSentSize +" M ↑ "
@@ -182,10 +184,9 @@ public class IVI extends AppCompatActivity {
                 }
                 if (ipv4addr != null) {
                     Log.i("IVI", "good");
-
                     startVPN();
-                    //把虚接口描述符写入管道
-//                            writePipe();
+                    ipv6addr = getLocalHostIp();
+                    textView3.setText(ipv6addr);
                     flag = 1;
                 }
             } else if (msg.what == 3) {
@@ -202,14 +203,14 @@ public class IVI extends AppCompatActivity {
                         rank = 32 - j - i * 8 - 1;
                         sum = (sum << 8) + intBuf[rank];
                     }
-                    networkData[i] = sum;
+                    networkData[4] = sum;
                 }
-                packSentNum = networkData[3];
-                packRecvNum = networkData[2];
-                packSentSpeed = ((double) networkData[1] -  packSentSize) / 1000000;
-                packRecvSpeed = ((double) networkData[0] -  packRecvSize) / 1000000;
-                packSentSize = (double) networkData[1] / 1000000;
-                packRecvSize = (double) networkData[0] / 1000000;
+                packSentNum = networkData[2];
+                packRecvNum = networkData[0];
+                packSentSpeed = ((double) networkData[3] -  packSentSize) / 1000000;
+                packRecvSpeed = ((double) networkData[1] -  packRecvSize) / 1000000;
+                packSentSize = (double) networkData[3] / 1000000;
+                packRecvSize = (double) networkData[1] / 1000000;
                 Log.i("MainActivity", "data0 : " + networkData[0]);
                 Log.i("MainActivity", "data1 : " + networkData[1]);
                 Log.i("MainActivity", "data2 : " + networkData[2]);
@@ -235,22 +236,13 @@ public class IVI extends AppCompatActivity {
                 if (flag == 0) {
                     int readFlag = readPipe(20);
                     Log.i("MainActivity", "len = "+readFlag);
-                    if (readFlag == 20) {//这里需要修改，判断是否读到了ip地址
+                    if (readFlag == 20) {
                         mHandler.sendEmptyMessage(2);
                         Log.i("IVI", "bad");
-
-
                     }
                 } else if (flag == 1) {
                     readPipe(32);
                     mHandler.sendEmptyMessage(3);
-                    //对读取到对流量信息做转换
-                    //上联ipv6地址
-                    //下联ipv4虚地址
-                    //上传总包数
-                    //下载总包数
-                    //上传速率（两次总上传流量相减）
-                    //下载速率（两次总下载流量相减）
                 }
                 mHandler.sendEmptyMessage(1); //需要刷新ui
                 Log.i("MainActivity", "flag = "+flag);
@@ -270,21 +262,6 @@ public class IVI extends AppCompatActivity {
         }
         return 0;
     }
-
-//    public void writePipe() {
-//        byte[] b = new byte[4];
-//        for (int i = 0; i < 4; i++) {
-//            b[i] = (byte) (1 >> (24 - i * 8));
-//        }
-//        try {
-//            fileOutputStream.write(b, 0, b.length);
-//            writeBuf = b;
-//            fileOutputStream.flush();
-//        } catch (IOException e){
-//            e.printStackTrace();
-//        }
-//    }
-
 
     public void startVPN() {
         Intent intent = VpnService.prepare(getApplicationContext());
@@ -310,49 +287,29 @@ public class IVI extends AppCompatActivity {
         }
     }
 
-    public static String getIPAddress(Context context) {
-        NetworkInfo info = ((ConnectivityManager) context
-                .getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
-        if (info != null && info.isConnected()) {
-            if (info.getType() == ConnectivityManager.TYPE_MOBILE) {//当前使用2G/3G/4G网络
-                try {
-                    //Enumeration<NetworkInterface> en=NetworkInterface.getNetworkInterfaces();
-                    for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
-                        NetworkInterface intf = en.nextElement();
-                        for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                            InetAddress inetAddress = enumIpAddr.nextElement();
-                            if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
-                                return inetAddress.getHostAddress();
-                            }
-                        }
+    public String getLocalHostIp() {
+        String ipaddress = "";
+        try {
+            Enumeration<NetworkInterface> en = NetworkInterface
+                    .getNetworkInterfaces();
+            // 遍历所用的网络接口
+            while (en.hasMoreElements()) {
+                NetworkInterface nif = en.nextElement();// 得到每一个网络接口绑定的所有ip
+                Enumeration<InetAddress> inet = nif.getInetAddresses();
+                // 遍历每一个接口绑定的所有ip
+                while (inet.hasMoreElements()) {
+                    InetAddress ip = inet.nextElement();
+                    if (!ip.isLoopbackAddress()) {
+                        return ip.getHostAddress();
                     }
-                } catch (SocketException e) {
-                    e.printStackTrace();
                 }
-
-            } else if (info.getType() == ConnectivityManager.TYPE_WIFI) {//当前使用无线网络
-                WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
-                WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-                String ipAddress = intIP2StringIP(wifiInfo.getIpAddress());//得到IPV4地址
-                return ipAddress;
             }
-        } else {
-            //当前无网络连接,请在设置中打开网络
+        } catch (SocketException e) {
+            Log.e("IVI", "获取本地ip地址失败");
+            e.printStackTrace();
         }
-        return null;
-    }
+        return ipaddress;
 
-    /**
-     * 将得到的int类型的IP转换为String类型
-     *
-     * @param ip
-     * @return
-     */
-    public static String intIP2StringIP(int ip) {
-        return (ip & 0xFF) + "." +
-                ((ip >> 8) & 0xFF) + "." +
-                ((ip >> 16) & 0xFF) + "." +
-                (ip >> 24 & 0xFF);
     }
 
     @Override
