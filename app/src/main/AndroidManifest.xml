@@ -14,13 +14,15 @@
         <activity
             android:name=".IVI"
             android:label="@string/title_activity_ivi"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:theme="@style/AppTheme.NoActionBar"
+            android:permission="android.permission.ACCESS_NETWORK_STATE">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".mVPNService"
+        <service
+            android:name=".mVPNService"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
