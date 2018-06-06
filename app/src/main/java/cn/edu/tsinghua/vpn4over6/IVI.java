@@ -139,18 +139,18 @@ public class IVI extends AppCompatActivity {
         if (dataSize > 500) {
             if (dataSize > 500000) {
                 if (dataSize > 500000000) {
-                    tmpResult = String.format("%.2f", packSentSpeed / 1000000000);
+                    tmpResult = String.format("%.2f", dataSize / 1000000000);
                     tmpResult += " GB";
                 } else {
-                    tmpResult = String.format("%.2f", packSentSpeed / 1000000);
+                    tmpResult = String.format("%.2f", dataSize / 1000000);
                     tmpResult += " MB";
                 }
             } else {
-                tmpResult = String.format("%.2f", packSentSpeed / 1000);
+                tmpResult = String.format("%.2f", dataSize / 1000);
                 tmpResult += " KB";
             }
         } else {
-            tmpResult = String.format("%.0f", packSentSpeed);
+            tmpResult = String.format("%.0f", dataSize);
             tmpResult += " B";
         }
         return tmpResult;
