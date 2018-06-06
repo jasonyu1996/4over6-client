@@ -134,18 +134,43 @@ public class IVI extends AppCompatActivity {
 
     }
 
+    public String transformDataSize(double dataSize) {
+        String tmpResult = "";
+        if (dataSize > 500) {
+            if (dataSize > 500000) {
+                if (dataSize > 500000000) {
+                    tmpResult = String.format("%.2f", packSentSpeed / 1000000000);
+                    tmpResult += " GB";
+                } else {
+                    tmpResult = String.format("%.2f", packSentSpeed / 1000000);
+                    tmpResult += " MB";
+                }
+            } else {
+                tmpResult = String.format("%.2f", packSentSpeed / 1000);
+                tmpResult += " KB";
+            }
+        } else {
+            tmpResult = String.format("%.0f", packSentSpeed);
+            tmpResult += " B";
+        }
+        return tmpResult;
+    }
     public Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             Log.i("MainActivity", "msg: " + msg.what);
             if (msg.what == 1) {
                 textView5.setText(ipv4addr);
+                String sentSize = transformDataSize(packSentSize);
+                String sentSpeed = transformDataSize(packSentSpeed);
+                String recvSize = transformDataSize(packRecvSize);
+                String recvSpeed = transformDataSize(packRecvSpeed);
                 textView8.setText(packSentNum + " Packets ↑ "
-                        + packSentSize +" M ↑ "
-                        + packSentSpeed +" MB/s");
+                        + sentSize +" ↑ "
+                        + sentSpeed +"/s");
                 textView10.setText(packRecvNum + " Packets ↓ "
-                        + packRecvSize +" M ↓ "
-                        + packRecvSpeed +" MB/s");
+                        + recvSize +" ↓ "
+                        + recvSpeed +"/s");
                 textView12.setText(String.format("%02d", mhour)+":"+
                         String.format("%02d", mminute)+":"+
                         String.format("%02d", msecond));
@@ -200,14 +225,14 @@ public class IVI extends AppCompatActivity {
                         rank = 32 - j - i * 8 - 1;
                         sum = (sum << 8) + intBuf[rank];
                     }
-                    networkData[4] = sum;
+                    networkData[i] = sum;
                 }
                 packSentNum = networkData[2];
                 packRecvNum = networkData[0];
-                packSentSpeed = ((double) networkData[3] -  packSentSize) / 1000000;
-                packRecvSpeed = ((double) networkData[1] -  packRecvSize) / 1000000;
-                packSentSize = (double) networkData[3] / 1000000;
-                packRecvSize = (double) networkData[1] / 1000000;
+                packSentSpeed = ((double) networkData[3] -  packSentSize);
+                packRecvSpeed = ((double) networkData[1] -  packRecvSize);
+                packSentSize = (double) networkData[3];
+                packRecvSize = (double) networkData[1];
                 Log.i("MainActivity", "data0 : " + networkData[0]);
                 Log.i("MainActivity", "data1 : " + networkData[1]);
                 Log.i("MainActivity", "data2 : " + networkData[2]);
