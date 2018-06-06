@@ -74,7 +74,6 @@ public class IVI extends AppCompatActivity {
         setSupportActionBar(mToolBar);
 
         final FloatingActionButton mFab = findViewById(R.id.fab);
-        mFab.setBackgroundColor(0x000000);
         mFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) { //点击悬浮按钮，开启或停止服务
@@ -85,7 +84,6 @@ public class IVI extends AppCompatActivity {
                         running = 1;
                         Snackbar.make(view, "服务已开启。", Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
-                        mFab.setBackgroundColor(0x009966);
                     } else if (running == 1) { //服务已经开启，点击按钮停止服务
                         running = 0;
                         msecond = 0;
@@ -96,7 +94,6 @@ public class IVI extends AppCompatActivity {
                         }
                         Snackbar.make(view, "服务已停止。", Snackbar.LENGTH_LONG)
                                 .setAction("Action", null).show();
-                        mFab.setBackgroundColor(0x666666);
                     }
                 } catch (IllegalStateException e) {
                     e.printStackTrace();

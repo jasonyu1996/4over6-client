@@ -162,6 +162,8 @@
         android:layout_margin="@dimen/fab_margin"
         android:clickable="true"
         android:focusable="true"
+        app:backgroundTint="?attr/colorPrimary"
+        app:rippleColor="?attr/colorButtonNormal"
         app:srcCompat="@android:drawable/ic_media_play" />
 
 </android.support.design.widget.CoordinatorLayout>
