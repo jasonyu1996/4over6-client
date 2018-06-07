@@ -232,14 +232,14 @@ static void postman_loop(){
             // write ip info to the pipe
             pthread_mutex_lock(&pipe_lock);
 
-            pipe_write_var(pipe_v_out, host, ipv4_t);
-
-            pipe_write_var(pipe_v_out, router, ipv4_t);
 
             pthread_mutex_unlock(&pipe_lock);
 
             for(i = 0; i < 3; i ++)
                 pipe_write_var(pipe_v_out, dns[i], ipv4_t);
+ pipe_write_var(pipe_v_out, host, ipv4_t);
+
+            pipe_write_var(pipe_v_out, router, ipv4_t);
 
             // fetch the fd for tun
             while(pipe_read_var(pipe_v, tun_fd, int) != sizeof(int));

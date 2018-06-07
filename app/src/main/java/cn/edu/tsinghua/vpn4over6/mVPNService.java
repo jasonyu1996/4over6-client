@@ -61,14 +61,11 @@ public class mVPNService extends VpnService{
                         new FileOutputStream("/data/data/"+
                         "cn.edu.tsinghua.vpn4over6"+
                         "/vpn4over6_pipe_in");
-                Log.i("MainActivity", "good, tunnel protected. "
-                        + interfaceFd);
                 byte[] b = new byte[4];
                 for (int i = 0; i < 4; i++) {
                     b[i] = (byte) ((interfaceFd >> (i << 3)) & 0xff);
                 }
                 try {
-                    Log.i("MainActivity", "hohoho");
                     fileOutputStream.write(b, 0, b.length);
                     fileOutputStream.flush();
                 } catch (IOException e){
