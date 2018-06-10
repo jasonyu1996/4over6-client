@@ -29,6 +29,7 @@ public class mVPNService extends VpnService{
         String DNS1 = dataArray[2];
         String DNS2 = dataArray[3];
         String DNS3 = dataArray[4];
+        Log.i("VPNService", "Router " + route);
         Log.i("VPNService", "bad man");
 
         if (mInterface == null) {

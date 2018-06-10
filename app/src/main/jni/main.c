@@ -37,7 +37,7 @@ extern const message_t MESSAGE_IP_REQUEST, MESSAGE_PULSE;
 static sock_t *sock_server, *tun_sock;
 static int pulse_count, server_pulse_count = 0;
 static UL sent_packet_len, sent_packet_cnt, received_packet_len, received_packet_cnt;
-static pthread_mutex_t server_pulse_count_lock, pipe_lock;
+static pthread_mutex_t server_pulse_count_lock, pipe_lock, server_lock;
 static pthread_t pulse_thread, postman_thread, pack_thread;
 static ipv4_t dns[3], host, router;
 static pipe_t* pipe_v, *pipe_v_out;
@@ -140,7 +140,9 @@ static void pack_loop(){
             payload_len = min(r, MAX_MESSAGE_PAYLOAD);
             memcpy(msg.data, buf + c_len, payload_len);
             msg.length = payload_len + sizeof(int) + sizeof(char);
+            pthread_mutex_lock(&server_lock);
             stream_write_message(sock_server, &msg);
+            pthread_mutex_unlock(&server_lock);
 
 
             r -= payload_len;
@@ -173,7 +175,9 @@ static void pulse_loop(){
             pulse_count = 0;
             // send pulse signal to server every 20 secs
 
+            pthread_mutex_lock(&server_lock);
             stream_write_message(sock_server, &MESSAGE_PULSE);
+            pthread_mutex_unlock(&server_lock);
 
             LOGD("Pulse sent! %d", vpn_started);
         }
@@ -235,11 +239,11 @@ static void postman_loop(){
 
             pthread_mutex_unlock(&pipe_lock);
 
+            pipe_write_var(pipe_v_out, host, ipv4_t);
+            pipe_write_var(pipe_v_out, router, ipv4_t);
             for(i = 0; i < 3; i ++)
                 pipe_write_var(pipe_v_out, dns[i], ipv4_t);
- pipe_write_var(pipe_v_out, host, ipv4_t);
 
-            pipe_write_var(pipe_v_out, router, ipv4_t);
 
             // fetch the fd for tun
             while(pipe_read_var(pipe_v, tun_fd, int) != sizeof(int));
@@ -312,6 +316,7 @@ JNIEXPORT jint JNICALL Java_cn_edu_tsinghua_vpn4over6_VPNBackend_startThread
     // initialize the mutexes
     pthread_mutex_init(&server_pulse_count_lock, NULL);
     pthread_mutex_init(&pipe_lock, NULL);
+    pthread_mutex_init(&server_lock, NULL);
 
 
     // initialize and start the threads
